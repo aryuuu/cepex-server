@@ -9,4 +9,5 @@ type Room struct {
 	IsClockwise bool     `json:"is_clockwise,omitempty"`
 	Players     []Player `json:"players,omitempty"`
 	Deck        []Card   `json:"deck,omitempty"`
+	Count       int32    `json:"count,omitempty"`
 }

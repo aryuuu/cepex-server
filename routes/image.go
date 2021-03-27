@@ -14,7 +14,7 @@ type ImageRouter struct{}
 func InitImageRouter(r *mux.Router) {
 	imageRouter := &ImageRouter{}
 
-	r.HandleFunc("/profile/picture", imageRouter.HandleProfilePicture).Methods("POST")
+	r.HandleFunc("/picture", imageRouter.HandleProfilePicture).Methods("POST")
 }
 
 // HandleProfilePicture nodoc:
