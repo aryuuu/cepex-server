@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -11,24 +12,30 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
-	socketio "github.com/googollee/go-socket.io"
+
+	// socketio "github.com/googollee/go-socket.io"
 	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
 )
 
 func main() {
 	r := new(mux.Router)
 	r.Use(mux.CORSMethodMiddleware(r))
 
-	socketIOServer, err := socketio.NewServer(nil)
-	if err != nil {
-		log.Fatal(err)
+	// socketIOServer, err := socketio.NewServer(nil)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	upgrader := websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin:     func(r *http.Request) bool { return true },
 	}
 
 	s3Repo := repositories.NewS3Repo(configureS3())
 
 	profileUsecase := usecases.NewProfileUsecase(s3Repo)
 
-	// socketIORouter := r.PathPrefix("/socket.io").Subrouter()
 	profileRouter := r.PathPrefix("/profile").Subrouter()
 
 	routes.InitProfileRouter(profileRouter, profileUsecase)
@@ -36,29 +43,52 @@ func main() {
 	// go socketIOServer.Serve()
 	// defer socketIOServer.Close()
 
-	socketIOServer.OnConnect("/", func(conn socketio.Conn) error {
-		conn.Emit("welcome", "Bite my shiny metal ass")
-		log.Printf("Client %s connected to default namespace", conn.ID())
-		log.Printf("namespace %s", conn.Namespace())
-		return nil
-	})
+	// socketIOServer.OnConnect("/", func(conn socketio.Conn) error {
+	// 	conn.Emit("welcome", "Bite my shiny metal ass")
+	// 	log.Printf("Client %s connected to default namespace", conn.ID())
+	// 	log.Printf("namespace %s", conn.Namespace())
+	// 	return nil
+	// })
 
-	r.HandleFunc("/socket.io/", func(w http.ResponseWriter, r *http.Request) {
-		allowHeaders := "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization"
-		if origin := r.Header.Get("Origin"); origin != "" {
-			w.Header().Set("Access-Control-Allow-Origin", origin)
-			w.Header().Set("Vary", "Origin")
-			w.Header().Set("Access-Control-Allow-Methods", "POST, PUT, PATCH, GET, DELETE")
-			w.Header().Set("Access-Control-Allow-Credentials", "true")
-			w.Header().Set("Access-Control-Allow-Headers", allowHeaders)
-		}
-		if r.Method == "OPTIONS" {
+	// r.HandleFunc("/socket.io/", func(w http.ResponseWriter, r *http.Request) {
+	// 	allowHeaders := "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization"
+	// 	if origin := r.Header.Get("Origin"); origin != "" {
+	// 		w.Header().Set("Access-Control-Allow-Origin", origin)
+	// 		w.Header().Set("Vary", "Origin")
+	// 		w.Header().Set("Access-Control-Allow-Methods", "POST, PUT, PATCH, GET, DELETE")
+	// 		w.Header().Set("Access-Control-Allow-Credentials", "true")
+	// 		w.Header().Set("Access-Control-Allow-Headers", allowHeaders)
+	// 	}
+	// 	if r.Method == "OPTIONS" {
+	// 		return
+	// 	}
+	// 	log.Print("/socket.io/ ")
+	// 	// log.Print(r)
+	// 	log.Printf("number of connections %d", socketIOServer.Count())
+	// 	socketIOServer.ServeHTTP(w, r)
+	// })
+	r.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		log.Print("/ws ")
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			log.Print(err)
 			return
 		}
-		log.Print("/socket.io/ ")
-		// log.Print(r)
-		log.Printf("number of connections %d", socketIOServer.Count())
-		socketIOServer.ServeHTTP(w, r)
+
+		for {
+			messageType, message, err := conn.ReadMessage()
+			if err != nil {
+				log.Print(err)
+				return
+			}
+
+			fmt.Printf("%s sent: %s\n", conn.RemoteAddr(), string(message))
+
+			if err = conn.WriteMessage(messageType, message); err != nil {
+				log.Print(err)
+				return
+			}
+		}
 	})
 
 	srv := &http.Server{
@@ -68,6 +98,10 @@ func main() {
 
 	log.Printf("Listening on port %s...", configs.Service.Port)
 	log.Fatal(srv.ListenAndServe())
+}
+
+func initService() {
+
 }
 
 func configureS3() *session.Session {
