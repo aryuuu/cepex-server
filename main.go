@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
@@ -35,10 +34,13 @@ func main() {
 	s3Repo := repositories.NewS3Repo(configureS3())
 
 	profileUsecase := usecases.NewProfileUsecase(s3Repo)
+	gameUsecase := usecases.NewGameUsecase()
 
 	profileRouter := r.PathPrefix("/profile").Subrouter()
+	gameRouter := r.PathPrefix("/ws").Subrouter()
 
 	routes.InitProfileRouter(profileRouter, profileUsecase)
+	routes.InitGameRouter(gameRouter, upgrader, gameUsecase)
 
 	// go socketIOServer.Serve()
 	// defer socketIOServer.Close()
@@ -67,29 +69,6 @@ func main() {
 	// 	log.Printf("number of connections %d", socketIOServer.Count())
 	// 	socketIOServer.ServeHTTP(w, r)
 	// })
-	r.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		log.Print("/ws ")
-		conn, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			log.Print(err)
-			return
-		}
-
-		for {
-			messageType, message, err := conn.ReadMessage()
-			if err != nil {
-				log.Print(err)
-				return
-			}
-
-			fmt.Printf("%s sent: %s\n", conn.RemoteAddr(), string(message))
-
-			if err = conn.WriteMessage(messageType, message); err != nil {
-				log.Print(err)
-				return
-			}
-		}
-	})
 
 	srv := &http.Server{
 		Addr:    ":" + configs.Service.Port,

@@ -11,13 +11,13 @@ import (
 
 // ImageRouter :nodoc:
 type ProfileRouter struct {
-	ProfileUseCase models.ProfileUsecase
+	ProfileUsecase models.ProfileUsecase
 }
 
 // InitProfileRouter :nodoc:
 func InitProfileRouter(r *mux.Router, puc models.ProfileUsecase) {
 	profileRouter := &ProfileRouter{
-		ProfileUseCase: puc,
+		ProfileUsecase: puc,
 	}
 
 	r.HandleFunc("/picture", profileRouter.HandleProfilePicture).Methods("POST")
@@ -43,7 +43,7 @@ func (m ProfileRouter) HandleProfilePicture(w http.ResponseWriter, r *http.Reque
 	}
 	defer file.Close()
 
-	result, err := m.ProfileUseCase.UploadPicture(file, fileHeader)
+	result, err := m.ProfileUsecase.UploadPicture(file, fileHeader)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprint(w, "Failed to upload picture")

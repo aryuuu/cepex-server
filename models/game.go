@@ -28,10 +28,15 @@ type Room struct {
 }
 
 type SocketServer struct {
-	clients map[uint32]*SocketClient 
+	clients map[uint32]*SocketClient
 }
 
 type SocketClient struct {
-	ID uint32
+	ID   uint32
 	conn *websocket.Conn
+}
+
+type GameUsecase interface {
+	SendMessage(connID string, message interface{})
+	BroadcastMessage(roomID string, message interface{})
 }
