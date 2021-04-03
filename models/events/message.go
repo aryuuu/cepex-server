@@ -65,6 +65,57 @@ type TurnBroadcast struct {
 	PlayerID  string `json:",omitempty"`
 }
 
+type MessageBroadcast struct {
+	EventType string `json:"event_type,omitempty"`
+	Message   string `json:"message,omitempty"`
+}
+
+func NewCreateRoomResponse(success bool, newRoom models.Room) CreateRoomResponse {
+	result := CreateRoomResponse{
+		EventType: "create-room",
+		Success:   success,
+		NewRoom:   newRoom,
+	}
+
+	return result
+}
+
+func NewJoinRoomBroadcast(player models.Player) JoinRoomBroadcast {
+	result := JoinRoomBroadcast{
+		EventType: "join-room-broadcast",
+		NewPlayer: models.Player{},
+	}
+
+	return result
+}
+
+func NewLeaveRoomResponse(success bool) LeaveRoomResponse {
+	result := LeaveRoomResponse{
+		EventType: "leave-room",
+		Success:   success,
+	}
+
+	return result
+}
+
+func NewLeaveRoomBroadcast(playerID string) LeaveRoomBroadcast {
+	result := LeaveRoomBroadcast{
+		EventType:       "leave-room-broadcast",
+		LeavingPlayerID: playerID,
+	}
+
+	return result
+}
+
+func NewMessageBroadcast(message string) MessageBroadcast {
+	result := MessageBroadcast{
+		EventType: "message-broadcast",
+		Message:   message,
+	}
+
+	return result
+}
+
 /* events
 create room
 join room
@@ -72,5 +123,6 @@ leave room
 start game
 play card
 pass
+chat
 
 */

@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -50,6 +51,13 @@ func (m ProfileRouter) HandleProfilePicture(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	body := struct {
+		Data string `json:"data"`
+	}{
+		Data: result,
+	}
+
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Image URL: %s", result)
+	// fmt.Fprintf(w, "Image URL: %s", result)
+	json.NewEncoder(w).Encode(body)
 }

@@ -13,13 +13,17 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 
 	// socketio "github.com/googollee/go-socket.io"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
 
 func main() {
 	r := new(mux.Router)
-	r.Use(mux.CORSMethodMiddleware(r))
+	cors := handlers.CORS(
+		handlers.AllowedOrigins([]string{"*"}),
+	)
+	r.Use(cors)
 
 	// socketIOServer, err := socketio.NewServer(nil)
 	// if err != nil {
@@ -37,7 +41,7 @@ func main() {
 	gameUsecase := usecases.NewGameUsecase()
 
 	profileRouter := r.PathPrefix("/profile").Subrouter()
-	gameRouter := r.PathPrefix("/ws").Subrouter()
+	gameRouter := r.PathPrefix("/game").Subrouter()
 
 	routes.InitProfileRouter(profileRouter, profileUsecase)
 	routes.InitGameRouter(gameRouter, upgrader, gameUsecase)
