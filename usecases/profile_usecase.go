@@ -1,7 +1,6 @@
 package usecases
 
 import (
-	"log"
 	"mime/multipart"
 
 	"github.com/aryuuu/cepex-server/models"
@@ -18,6 +17,5 @@ func NewProfileUsecase(s3r models.S3Repository) models.ProfileUsecase {
 }
 
 func (u *profileUsecase) UploadPicture(file multipart.File, fileHeader *multipart.FileHeader) (string, error) {
-	log.Print("upload picture profile usecase")
 	return u.s3Repo.UploadImage(file, fileHeader)
 }

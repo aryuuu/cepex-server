@@ -12,7 +12,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 
-	// socketio "github.com/googollee/go-socket.io"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -25,10 +24,6 @@ func main() {
 	)
 	r.Use(cors)
 
-	// socketIOServer, err := socketio.NewServer(nil)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
@@ -45,34 +40,6 @@ func main() {
 
 	routes.InitProfileRouter(profileRouter, profileUsecase)
 	routes.InitGameRouter(gameRouter, upgrader, gameUsecase)
-
-	// go socketIOServer.Serve()
-	// defer socketIOServer.Close()
-
-	// socketIOServer.OnConnect("/", func(conn socketio.Conn) error {
-	// 	conn.Emit("welcome", "Bite my shiny metal ass")
-	// 	log.Printf("Client %s connected to default namespace", conn.ID())
-	// 	log.Printf("namespace %s", conn.Namespace())
-	// 	return nil
-	// })
-
-	// r.HandleFunc("/socket.io/", func(w http.ResponseWriter, r *http.Request) {
-	// 	allowHeaders := "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization"
-	// 	if origin := r.Header.Get("Origin"); origin != "" {
-	// 		w.Header().Set("Access-Control-Allow-Origin", origin)
-	// 		w.Header().Set("Vary", "Origin")
-	// 		w.Header().Set("Access-Control-Allow-Methods", "POST, PUT, PATCH, GET, DELETE")
-	// 		w.Header().Set("Access-Control-Allow-Credentials", "true")
-	// 		w.Header().Set("Access-Control-Allow-Headers", allowHeaders)
-	// 	}
-	// 	if r.Method == "OPTIONS" {
-	// 		return
-	// 	}
-	// 	log.Print("/socket.io/ ")
-	// 	// log.Print(r)
-	// 	log.Printf("number of connections %d", socketIOServer.Count())
-	// 	socketIOServer.ServeHTTP(w, r)
-	// })
 
 	srv := &http.Server{
 		Addr:    ":" + configs.Service.Port,
