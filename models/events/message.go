@@ -13,15 +13,17 @@ type GameResponse struct {
 }
 
 type CreateRoomResponse struct {
-	EventType string      `json:"event_type,omitempty"`
-	Success   bool        `json:"success,omitempty"`
-	NewRoom   models.Room `json:"room,omitempty"`
+	EventType string        `json:"event_type,omitempty"`
+	Success   bool          `json:"success,omitempty"`
+	NewRoom   models.Room   `json:"room,omitempty"`
+	Hand      []models.Card `json:"hand,omitempty"`
 }
 
 type JoinRoomResponse struct {
-	EventType string      `json:"event_type,omitempty"`
-	Success   bool        `json:"success,omitempty"`
-	NewRoom   models.Room `json:"new_room,omitempty"`
+	EventType string        `json:"event_type,omitempty"`
+	Success   bool          `json:"success,omitempty"`
+	NewRoom   models.Room   `json:"new_room,omitempty"`
+	Hand      []models.Card `json:"hand,omitempty"`
 }
 
 type JoinRoomBroadcast struct {
@@ -71,7 +73,7 @@ type MessageBroadcast struct {
 	Message   string `json:"message,omitempty"`
 }
 
-func NewCreateRoomResponse(success bool, roomID string, host models.Player) CreateRoomResponse {
+func NewCreateRoomResponse(success bool, roomID string, host models.Player, hand []models.Card) CreateRoomResponse {
 	players := make(map[string]models.Player)
 	players[host.Name] = host
 
@@ -87,6 +89,7 @@ func NewCreateRoomResponse(success bool, roomID string, host models.Player) Crea
 			Players:     players,
 			Count:       0,
 		},
+		Hand: hand,
 	}
 
 	return result
@@ -138,14 +141,3 @@ func NewMessageBroadcast(message, sender string) MessageBroadcast {
 
 	return result
 }
-
-/* events
-create room
-join room
-leave room
-start game
-play card
-pass
-chat
-
-*/

@@ -70,7 +70,7 @@ func (m GameRouter) HandleGameEvent(w http.ResponseWriter, r *http.Request) {
 			_, ok := m.Rooms[roomID]
 
 			if ok {
-				conn.WriteJSON(events.NewCreateRoomResponse(false, roomID, models.Player{}))
+				conn.WriteJSON(events.NewCreateRoomResponse(false, roomID, models.Player{}, nil))
 			} else {
 				player := models.Player{
 					Name:     gameRequest.Message,
@@ -87,15 +87,17 @@ func (m GameRouter) HandleGameEvent(w http.ResponseWriter, r *http.Request) {
 					IsStarted:   false,
 					IsClockwise: false,
 					Players:     make(map[string]models.Player),
-					Deck:        make([]models.Card, 52),
+					Deck:        models.NewDeck(),
 					Count:       0,
 				}
 
 				m.GameRooms[roomID] = gameRoom
 				m.GameRooms[roomID].Players[player.PlayerID] = player
 
+				player.Hand = gameRoom.PickCard(2)
+
 				log.Printf("host name: %s", player.Name)
-				res := events.NewCreateRoomResponse(true, roomID, player)
+				res := events.NewCreateRoomResponse(true, roomID, player, player.Hand)
 				conn.WriteJSON(res)
 			}
 
@@ -108,13 +110,15 @@ func (m GameRouter) HandleGameEvent(w http.ResponseWriter, r *http.Request) {
 			conn.WriteJSON(res)
 
 			if ok {
+				gameRoom := m.GameRooms[roomID]
 				player := models.Player{
 					Name:     gameRequest.Message,
 					IsAlive:  true,
 					PlayerID: uuid.NewString(),
+					Hand:     gameRoom.PickCard(2),
 				}
 				m.Rooms[roomID][conn] = player.PlayerID
-				m.GameRooms[roomID].Players[player.PlayerID] = player
+				gameRoom.Players[player.PlayerID] = player
 
 				broadcast := events.NewJoinRoomBroadcast(player)
 				for connection := range room {
