@@ -43,6 +43,8 @@ func (m GameRouter) HandleGameEvent(w http.ResponseWriter, r *http.Request) {
 	log.Print(r.URL.Path)
 	vars := mux.Vars(r)
 
+	roomID := vars["roomID"]
+
 	conn, err := m.Upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Print(err)
@@ -64,8 +66,7 @@ func (m GameRouter) HandleGameEvent(w http.ResponseWriter, r *http.Request) {
 
 		switch gameRequest.EventType {
 		case "create-room":
-			log.Printf("Client trying to create a new room with ID %v", vars["roomID"])
-			roomID := vars["roomID"]
+			log.Printf("Client trying to create a new room with ID %v", roomID)
 
 			_, ok := m.Rooms[roomID]
 
@@ -73,9 +74,10 @@ func (m GameRouter) HandleGameEvent(w http.ResponseWriter, r *http.Request) {
 				conn.WriteJSON(events.NewCreateRoomResponse(false, roomID, models.Player{}, nil))
 			} else {
 				player := models.Player{
-					Name:     gameRequest.Message,
-					IsAlive:  true,
-					PlayerID: uuid.NewString(),
+					Name:      gameRequest.ClientName,
+					AvatarURL: gameRequest.AvatarURL,
+					IsAlive:   true,
+					PlayerID:  uuid.NewString(),
 				}
 				m.Rooms[roomID] = make(map[*websocket.Conn]string)
 				m.Rooms[roomID][conn] = player.PlayerID
@@ -86,13 +88,14 @@ func (m GameRouter) HandleGameEvent(w http.ResponseWriter, r *http.Request) {
 					HostID:      player.PlayerID,
 					IsStarted:   false,
 					IsClockwise: false,
-					Players:     make(map[string]models.Player),
+					Players:     []models.Player{},
 					Deck:        models.NewDeck(),
 					Count:       0,
 				}
 
+				gameRoom.AddPlayer(player)
 				m.GameRooms[roomID] = gameRoom
-				m.GameRooms[roomID].Players[player.PlayerID] = player
+				// m.GameRooms[roomID].Players[player.PlayerID] = player
 
 				player.Hand = gameRoom.PickCard(2)
 
@@ -103,67 +106,92 @@ func (m GameRouter) HandleGameEvent(w http.ResponseWriter, r *http.Request) {
 
 			break
 		case "join-room":
-			log.Printf("Client trying to join room %v", vars["roomID"])
-			roomID := vars["roomID"]
+			log.Printf("Client trying to join room %v", roomID)
+
 			room, ok := m.Rooms[roomID]
-			res := events.NewJoinRoomResponse(ok, m.GameRooms[roomID])
-			conn.WriteJSON(res)
 
 			if ok {
 				gameRoom := m.GameRooms[roomID]
 				player := models.Player{
-					Name:     gameRequest.Message,
-					IsAlive:  true,
-					PlayerID: uuid.NewString(),
-					Hand:     gameRoom.PickCard(2),
+					Name:      gameRequest.ClientName,
+					AvatarURL: gameRequest.AvatarURL,
+					IsAlive:   true,
+					PlayerID:  uuid.NewString(),
+					Hand:      gameRoom.PickCard(2),
 				}
 				m.Rooms[roomID][conn] = player.PlayerID
-				gameRoom.Players[player.PlayerID] = player
+				gameRoom.AddPlayer(player)
+
+				res := events.NewJoinRoomResponse(ok, gameRoom, player.Hand)
+				conn.WriteJSON(res)
 
 				broadcast := events.NewJoinRoomBroadcast(player)
 				for connection := range room {
 					connection.WriteJSON(broadcast)
 				}
+			} else {
+				res := events.NewJoinRoomResponse(ok, m.GameRooms[roomID], nil)
+				conn.WriteJSON(res)
 			}
 			break
 		case "leave-room":
-			log.Printf("Client trying to leave room %v", vars["roomID"])
-			roomID := vars["roomID"]
+			log.Printf("Client trying to leave room %v", roomID)
+
 			room, ok := m.Rooms[roomID]
+			playerID := m.Rooms[roomID][conn]
 			res := events.NewLeaveRoomResponse(true)
 			conn.WriteJSON(res)
 
 			if ok {
-				broadcast := events.NewLeaveRoomBroadcast(room[conn])
+				broadcast := events.NewLeaveRoomBroadcast(playerID)
 				for connection := range room {
 					connection.WriteJSON(broadcast)
 				}
 			}
+
+			playerIndex := -1
+			for i, p := range m.GameRooms[roomID].Players {
+				if p.PlayerID == playerID {
+					playerIndex = i
+					break
+				}
+			}
+
+			gameRoom := m.GameRooms[roomID]
+			gameRoom.RemovePlayer(playerIndex)
+			delete(m.Rooms[roomID], conn)
+
 			break
 		case "start-game":
-			log.Printf("Client trying to start game on room %v", vars["roomID"])
+			log.Printf("Client trying to start game on room %v", roomID)
 			res := events.StartGameResponse{
 				EventType: "leave-room",
 				StarterID: "dummyID",
 			}
 			conn.WriteJSON(res)
 		case "play-card":
-			log.Printf("Client is playing card on room %v", vars["roomID"])
+			log.Printf("Client is playing card on room %v", roomID)
 			res := events.PlayCardResponse{
 				EventType: "play-card",
 				Success:   true,
 			}
 			conn.WriteJSON(res)
 		case "chat":
-			log.Printf("Client is sending chat on room %v", vars["roomID"])
-			roomID := vars["roomID"]
+			log.Printf("Client is sending chat on room %v", roomID)
 
 			room, ok := m.Rooms[roomID]
 			if ok {
 				playerID := room[conn]
-				playerName := m.GameRooms[roomID].Players[playerID].Name
+				var playerName string
+				for _, p := range m.GameRooms[roomID].Players {
+					if p.PlayerID == playerID {
+						playerName = p.Name
+						break
+					}
+				}
+
 				log.Printf("player %s send chat", playerName)
-				broadcast := events.NewMessageBroadcast(gameRequest.Message, m.GameRooms[roomID].Players[playerID].Name)
+				broadcast := events.NewMessageBroadcast(gameRequest.Message, playerName)
 				for connection := range room {
 					connection.WriteJSON(broadcast)
 				}

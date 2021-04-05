@@ -19,22 +19,23 @@ type Card struct {
 
 // Player :nodoc:
 type Player struct {
-	PlayerID string `json:"id_player,omitplayer"`
-	Name     string `json:"name,omitempty"`
-	IsAlive  bool   `json:"is_alive,omitempty"`
-	Hand     []Card `json:"-,omitempty"`
+	PlayerID  string `json:"id_player,omitplayer"`
+	Name      string `json:"name,omitempty"`
+	AvatarURL string `json:"avatar_url"`
+	IsAlive   bool   `json:"is_alive"`
+	Hand      []Card `json:"-"`
 }
 
 // Room :nodoc:
 type Room struct {
-	RoomID      string            `json:"id_room,omitempty"`
-	Capacity    int32             `json:"capacity,omitempty"`
-	HostID      string            `json:"id_host,omitempty"`
-	IsStarted   bool              `json:"is_started,omitempty"`
-	IsClockwise bool              `json:"is_clockwise,omitempty"`
-	Players     map[string]Player `json:"players,omitempty"`
-	Deck        []Card            `json:"-"`
-	Count       int32             `json:"count"`
+	RoomID      string   `json:"id_room,omitempty"`
+	Capacity    int32    `json:"capacity,omitempty"`
+	HostID      string   `json:"id_host,omitempty"`
+	IsStarted   bool     `json:"is_started,omitempty"`
+	IsClockwise bool     `json:"is_clockwise,omitempty"`
+	Players     []Player `json:"players,omitempty"`
+	Deck        []Card   `json:"-"`
+	Count       int32    `json:"count"`
 }
 
 type SocketServer struct {
@@ -88,4 +89,12 @@ func (r *Room) PutCard(cards []Card) {
 		r.Deck[randomNumber] = cards[idx]
 		r.Deck = append(r.Deck, temp)
 	}
+}
+
+func (r *Room) AddPlayer(player Player) {
+	r.Players = append(r.Players, player)
+}
+
+func (r *Room) RemovePlayer(playerIndex int) {
+	r.Players = append(r.Players[:playerIndex], r.Players[playerIndex+1:]...)
 }

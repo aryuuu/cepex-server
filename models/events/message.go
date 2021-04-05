@@ -3,8 +3,10 @@ package events
 import "github.com/aryuuu/cepex-server/models"
 
 type GameRequest struct {
-	EventType string `json:"event_type,omitempty"`
-	Message   string `json:"message,omitempty"`
+	EventType  string `json:"event_type,omitempty"`
+	ClientName string `json:"client_name"`
+	AvatarURL  string `json:"avatar_url"`
+	Message    string `json:"message,omitempty"`
 }
 
 type GameResponse struct {
@@ -58,8 +60,9 @@ type PlayCardResponse struct {
 }
 
 type PlayCardBroadcast struct {
-	EventType string `json:"event_type,omitempty"`
-	Count     int32  `json:"count,omitempty"`
+	EventType   string `json:"event_type,omitempty"`
+	Count       int32  `json:"count,omitempty"`
+	IsClockwise bool   `json:"is_clockwise"`
 }
 
 type TurnBroadcast struct {
@@ -74,8 +77,7 @@ type MessageBroadcast struct {
 }
 
 func NewCreateRoomResponse(success bool, roomID string, host models.Player, hand []models.Card) CreateRoomResponse {
-	players := make(map[string]models.Player)
-	players[host.Name] = host
+	players := []models.Player{host}
 
 	result := CreateRoomResponse{
 		EventType: "create-room",
@@ -95,11 +97,12 @@ func NewCreateRoomResponse(success bool, roomID string, host models.Player, hand
 	return result
 }
 
-func NewJoinRoomResponse(success bool, room models.Room) JoinRoomResponse {
+func NewJoinRoomResponse(success bool, room models.Room, hand []models.Card) JoinRoomResponse {
 	result := JoinRoomResponse{
 		EventType: "join-room",
 		Success:   success,
 		NewRoom:   room,
+		Hand:      hand,
 	}
 
 	return result
@@ -108,7 +111,7 @@ func NewJoinRoomResponse(success bool, room models.Room) JoinRoomResponse {
 func NewJoinRoomBroadcast(player models.Player) JoinRoomBroadcast {
 	result := JoinRoomBroadcast{
 		EventType: "join-room-broadcast",
-		NewPlayer: models.Player{},
+		NewPlayer: player,
 	}
 
 	return result
