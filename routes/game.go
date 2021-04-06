@@ -127,8 +127,10 @@ func (m GameRouter) HandleGameEvent(w http.ResponseWriter, r *http.Request) {
 				conn.WriteJSON(res)
 
 				broadcast := events.NewJoinRoomBroadcast(player)
-				for connection := range room {
-					connection.WriteJSON(broadcast)
+				for connection, playerID := range room {
+					if playerID != player.PlayerID {
+						connection.WriteJSON(broadcast)
+					}
 				}
 			} else {
 				res := events.NewJoinRoomResponse(ok, m.GameRooms[roomID], nil)
