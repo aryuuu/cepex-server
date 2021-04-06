@@ -7,6 +7,8 @@ type GameRequest struct {
 	ClientName string `json:"client_name"`
 	AvatarURL  string `json:"avatar_url"`
 	Message    string `json:"message,omitempty"`
+	HandIndex  int    `json:"hand_index,omitempty"`
+	IsAdd      bool   `json:"is_add,omitempty"`
 }
 
 type GameResponse struct {
@@ -18,7 +20,7 @@ type CreateRoomResponse struct {
 	EventType string        `json:"event_type,omitempty"`
 	Success   bool          `json:"success,omitempty"`
 	NewRoom   models.Room   `json:"room,omitempty"`
-	Hand      []models.Card `json:"hand,omitempty"`
+	Hand      []models.Card `json:"hand"`
 }
 
 type JoinRoomResponse struct {
@@ -29,8 +31,8 @@ type JoinRoomResponse struct {
 }
 
 type JoinRoomBroadcast struct {
-	EventType string        `json:"event_type,omitempty"`
-	NewPlayer models.Player `json:"new_player,omitempty"`
+	EventType string         `json:"event_type,omitempty"`
+	NewPlayer *models.Player `json:"new_player,omitempty"`
 }
 
 type LeaveRoomResponse struct {
@@ -55,14 +57,18 @@ type StartGameBroadcast struct {
 }
 
 type PlayCardResponse struct {
-	EventType string `json:"event_type,omitempty"`
-	Success   bool   `json:"success,omitempty"`
+	EventType string        `json:"event_type,omitempty"`
+	Success   bool          `json:"success,omitempty"`
+	NewHand   []models.Card `json:"new_hand"`
+	// HandIndex int         `json:"hand_index,omitempty"`
+	// DrawnCard models.Card `json:"drawn_card,omitempty"`
 }
 
 type PlayCardBroadcast struct {
-	EventType   string `json:"event_type,omitempty"`
-	Count       int32  `json:"count,omitempty"`
-	IsClockwise bool   `json:"is_clockwise"`
+	EventType   string      `json:"event_type,omitempty"`
+	Card        models.Card `json:"card"`
+	Count       int         `json:"count,omitempty"`
+	IsClockwise bool        `json:"is_clockwise"`
 }
 
 type TurnBroadcast struct {
@@ -76,8 +82,8 @@ type MessageBroadcast struct {
 	Message   string `json:"message,omitempty"`
 }
 
-func NewCreateRoomResponse(success bool, roomID string, host models.Player, hand []models.Card) CreateRoomResponse {
-	players := []models.Player{host}
+func NewCreateRoomResponse(success bool, roomID string, host *models.Player, hand []models.Card) CreateRoomResponse {
+	players := []*models.Player{host}
 
 	result := CreateRoomResponse{
 		EventType: "create-room",
@@ -97,18 +103,18 @@ func NewCreateRoomResponse(success bool, roomID string, host models.Player, hand
 	return result
 }
 
-func NewJoinRoomResponse(success bool, room models.Room, hand []models.Card) JoinRoomResponse {
+func NewJoinRoomResponse(success bool, room *models.Room, hand []models.Card) JoinRoomResponse {
 	result := JoinRoomResponse{
 		EventType: "join-room",
 		Success:   success,
-		NewRoom:   room,
+		NewRoom:   *room,
 		Hand:      hand,
 	}
 
 	return result
 }
 
-func NewJoinRoomBroadcast(player models.Player) JoinRoomBroadcast {
+func NewJoinRoomBroadcast(player *models.Player) JoinRoomBroadcast {
 	result := JoinRoomBroadcast{
 		EventType: "join-room-broadcast",
 		NewPlayer: player,
@@ -140,6 +146,54 @@ func NewMessageBroadcast(message, sender string) MessageBroadcast {
 		EventType: "message-broadcast",
 		Message:   message,
 		Sender:    sender,
+	}
+
+	return result
+}
+
+func NewStartGameResponse(success bool) StartGameResponse {
+	result := StartGameResponse{
+		EventType: "start-game",
+		Success:   success,
+	}
+
+	return result
+}
+
+func NewStartGameBroadcast(starterID string) StartGameBroadcast {
+	result := StartGameBroadcast{
+		EventType: "start-game-broadcast",
+		StarterID: starterID,
+	}
+
+	return result
+}
+
+func NewPlayCardResponse(success bool, newHand []models.Card) PlayCardResponse {
+	result := PlayCardResponse{
+		EventType: "play-card",
+		Success:   success,
+		NewHand:   newHand,
+	}
+
+	return result
+}
+
+func NewPlayCardBroadcast(card models.Card, count int, isClockwise bool) PlayCardBroadcast {
+	result := PlayCardBroadcast{
+		EventType:   "play-card-broadcast",
+		Card:        card,
+		Count:       count,
+		IsClockwise: isClockwise,
+	}
+
+	return result
+}
+
+func NewTurnBroadcast(playerID string) TurnBroadcast {
+	result := TurnBroadcast{
+		EventType: "turn-broadcast",
+		PlayerID:  playerID,
 	}
 
 	return result

@@ -39,6 +39,7 @@ func main() {
 	gameRouter := r.PathPrefix("/game").Subrouter()
 
 	routes.InitProfileRouter(profileRouter, profileUsecase)
+
 	routes.InitGameRouter(gameRouter, upgrader, gameUsecase)
 
 	srv := &http.Server{

@@ -15,7 +15,7 @@ import (
 type GameRouter struct {
 	Upgrader    websocket.Upgrader
 	Rooms       map[string]map[*websocket.Conn]string
-	GameRooms   map[string]models.Room
+	GameRooms   map[string]*models.Room
 	GameUsecase models.GameUsecase
 }
 
@@ -23,7 +23,7 @@ func InitGameRouter(r *mux.Router, upgrader websocket.Upgrader, guc models.GameU
 	gameRouter := &GameRouter{
 		Upgrader:    upgrader,
 		Rooms:       make(map[string]map[*websocket.Conn]string),
-		GameRooms:   make(map[string]models.Room),
+		GameRooms:   make(map[string]*models.Room),
 		GameUsecase: guc,
 	}
 
@@ -40,7 +40,6 @@ func (m GameRouter) HandleCreateRoom(w http.ResponseWriter, r *http.Request) {
 }
 
 func (m GameRouter) HandleGameEvent(w http.ResponseWriter, r *http.Request) {
-	log.Print(r.URL.Path)
 	vars := mux.Vars(r)
 
 	roomID := vars["roomID"]
@@ -59,6 +58,9 @@ func (m GameRouter) HandleGameEvent(w http.ResponseWriter, r *http.Request) {
 			log.Print(err)
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Print("IsUnexpectedCloseError()", err)
+			} else {
+
+				log.Printf("expected close error: %v", err)
 			}
 			return
 		}
@@ -71,35 +73,34 @@ func (m GameRouter) HandleGameEvent(w http.ResponseWriter, r *http.Request) {
 			_, ok := m.Rooms[roomID]
 
 			if ok {
-				conn.WriteJSON(events.NewCreateRoomResponse(false, roomID, models.Player{}, nil))
+				conn.WriteJSON(events.NewCreateRoomResponse(false, roomID, &models.Player{}, nil))
 			} else {
-				player := models.Player{
+				player := &models.Player{
 					Name:      gameRequest.ClientName,
 					AvatarURL: gameRequest.AvatarURL,
 					IsAlive:   true,
 					PlayerID:  uuid.NewString(),
+					Hand:      []models.Card{},
 				}
 				m.Rooms[roomID] = make(map[*websocket.Conn]string)
 				m.Rooms[roomID][conn] = player.PlayerID
 
-				gameRoom := models.Room{
+				gameRoom := &models.Room{
 					RoomID:      roomID,
 					Capacity:    4,
 					HostID:      player.PlayerID,
 					IsStarted:   false,
 					IsClockwise: false,
-					Players:     []models.Player{},
+					Players:     []*models.Player{},
 					Deck:        models.NewDeck(),
 					Count:       0,
 				}
 
 				gameRoom.AddPlayer(player)
 				m.GameRooms[roomID] = gameRoom
-				// m.GameRooms[roomID].Players[player.PlayerID] = player
+				pickedCard := gameRoom.PickCard(2)
+				player.AddHand(pickedCard)
 
-				player.Hand = gameRoom.PickCard(2)
-
-				log.Printf("host name: %s", player.Name)
 				res := events.NewCreateRoomResponse(true, roomID, player, player.Hand)
 				conn.WriteJSON(res)
 			}
@@ -112,14 +113,14 @@ func (m GameRouter) HandleGameEvent(w http.ResponseWriter, r *http.Request) {
 
 			if ok {
 				gameRoom := m.GameRooms[roomID]
-				player := models.Player{
+				player := &models.Player{
 					Name:      gameRequest.ClientName,
 					AvatarURL: gameRequest.AvatarURL,
 					IsAlive:   true,
 					PlayerID:  uuid.NewString(),
 					Hand:      gameRoom.PickCard(2),
 				}
-				m.Rooms[roomID][conn] = player.PlayerID
+				room[conn] = player.PlayerID
 				gameRoom.AddPlayer(player)
 
 				res := events.NewJoinRoomResponse(ok, gameRoom, player.Hand)
@@ -164,18 +165,70 @@ func (m GameRouter) HandleGameEvent(w http.ResponseWriter, r *http.Request) {
 			break
 		case "start-game":
 			log.Printf("Client trying to start game on room %v", roomID)
-			res := events.StartGameResponse{
-				EventType: "leave-room",
-				StarterID: "dummyID",
+			room := m.Rooms[roomID]
+			gameRoom := m.GameRooms[roomID]
+			playerID := m.Rooms[roomID][conn]
+
+			if playerID != gameRoom.HostID {
+				res := events.NewStartGameResponse(false)
+				conn.WriteJSON(res)
+
+			} else {
+				res := events.NewStartGameBroadcast("")
+				for connection := range room {
+					connection.WriteJSON(res)
+				}
 			}
-			conn.WriteJSON(res)
+			break
+
 		case "play-card":
 			log.Printf("Client is playing card on room %v", roomID)
-			res := events.PlayCardResponse{
-				EventType: "play-card",
-				Success:   true,
+			gameRoom := m.GameRooms[roomID]
+			if !gameRoom.IsStarted {
+				res := events.NewPlayCardResponse(false, nil)
+				conn.WriteJSON(res)
+				break
 			}
-			conn.WriteJSON(res)
+			playerID := m.Rooms[roomID][conn]
+			playerIndex := -1
+			for i, p := range gameRoom.Players {
+				if p.PlayerID == playerID {
+					playerIndex = i
+					break
+				}
+			}
+
+			player := (gameRoom.Players)[playerIndex]
+			log.Printf("players hand before playing: %v", player.Hand)
+			log.Printf("players hand before playing: %v", (gameRoom.Players)[playerIndex].Hand)
+			playedCard := (player.Hand)[gameRequest.HandIndex]
+			log.Printf("Players is playing: %v", playedCard)
+
+			var res events.PlayCardResponse
+
+			isPlayable := gameRoom.PlayCard(playedCard, gameRequest.IsAdd)
+			isAvailable := player.PlayHand(gameRequest.HandIndex)
+
+			if isPlayable && isAvailable {
+				drawnCard := gameRoom.PickCard(1)
+				player.AddHand(drawnCard)
+				gameRoom.PutCard([]models.Card{playedCard})
+				log.Printf("players hand after playing: %v", player.Hand)
+				log.Printf("players hand after playing: %v", (gameRoom.Players)[playerIndex].Hand)
+
+				res = events.NewPlayCardResponse(isPlayable, player.Hand)
+				conn.WriteJSON(res)
+
+				broadcast := events.NewPlayCardBroadcast(playedCard, gameRoom.Count, gameRoom.IsClockwise)
+				for connection := range m.Rooms[roomID] {
+					connection.WriteJSON(broadcast)
+				}
+
+			} else {
+				res = events.NewPlayCardResponse(false, nil)
+				conn.WriteJSON(res)
+			}
+			break
 		case "chat":
 			log.Printf("Client is sending chat on room %v", roomID)
 
@@ -196,6 +249,8 @@ func (m GameRouter) HandleGameEvent(w http.ResponseWriter, r *http.Request) {
 					connection.WriteJSON(broadcast)
 				}
 			}
+		default:
+			break
 		}
 
 		// fmt.Printf("%s sent: %s\n", conn.RemoteAddr(), string(message))
