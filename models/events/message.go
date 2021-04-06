@@ -52,8 +52,8 @@ type StartGameResponse struct {
 }
 
 type StartGameBroadcast struct {
-	EventType string `json:"event_type,omitempty"`
-	StarterID string `json:",omitempty"`
+	EventType    string `json:"event_type,omitempty"`
+	StarterIndex int    `json:"starter_idx"`
 }
 
 type PlayCardResponse struct {
@@ -65,10 +65,11 @@ type PlayCardResponse struct {
 }
 
 type PlayCardBroadcast struct {
-	EventType   string      `json:"event_type,omitempty"`
-	Card        models.Card `json:"card"`
-	Count       int         `json:"count,omitempty"`
-	IsClockwise bool        `json:"is_clockwise"`
+	EventType       string      `json:"event_type,omitempty"`
+	Card            models.Card `json:"card"`
+	Count           int         `json:"count,omitempty"`
+	IsClockwise     bool        `json:"is_clockwise"`
+	NextPlayerIndex int         `json:"next_player_idx"`
 }
 
 type TurnBroadcast struct {
@@ -160,10 +161,10 @@ func NewStartGameResponse(success bool) StartGameResponse {
 	return result
 }
 
-func NewStartGameBroadcast(starterID string) StartGameBroadcast {
+func NewStartGameBroadcast(starterIndex int) StartGameBroadcast {
 	result := StartGameBroadcast{
-		EventType: "start-game-broadcast",
-		StarterID: starterID,
+		EventType:    "start-game-broadcast",
+		StarterIndex: starterIndex,
 	}
 
 	return result
@@ -179,12 +180,13 @@ func NewPlayCardResponse(success bool, newHand []models.Card) PlayCardResponse {
 	return result
 }
 
-func NewPlayCardBroadcast(card models.Card, count int, isClockwise bool) PlayCardBroadcast {
+func NewPlayCardBroadcast(card models.Card, count int, isClockwise bool, nextPlayerIdx int) PlayCardBroadcast {
 	result := PlayCardBroadcast{
-		EventType:   "play-card-broadcast",
-		Card:        card,
-		Count:       count,
-		IsClockwise: isClockwise,
+		EventType:       "play-card-broadcast",
+		Card:            card,
+		Count:           count,
+		IsClockwise:     isClockwise,
+		NextPlayerIndex: nextPlayerIdx,
 	}
 
 	return result

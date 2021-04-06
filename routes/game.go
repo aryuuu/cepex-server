@@ -3,10 +3,12 @@ package routes
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 
 	"github.com/aryuuu/cepex-server/models"
 	"github.com/aryuuu/cepex-server/models/events"
+	"github.com/aryuuu/cepex-server/utils/common"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -176,9 +178,16 @@ func (m GameRouter) HandleGameEvent(w http.ResponseWriter, r *http.Request) {
 				conn.WriteJSON(res)
 
 			} else {
-				res := events.NewStartGameBroadcast("")
+				gameRoom.IsStarted = true
+				starterIndex := rand.Intn(len(gameRoom.Players))
+				gameRoom.TurnID = gameRoom.Players[starterIndex].PlayerID
+				notifContent := "game started, " + gameRoom.Players[starterIndex].Name + "'s turn"
+
+				notification := events.NewMessageBroadcast(notifContent, "system")
+				res := events.NewStartGameBroadcast(starterIndex)
 				for connection := range room {
 					connection.WriteJSON(res)
+					connection.WriteJSON(notification)
 				}
 			}
 			break
@@ -186,12 +195,22 @@ func (m GameRouter) HandleGameEvent(w http.ResponseWriter, r *http.Request) {
 		case "play-card":
 			log.Printf("Client is playing card on room %v", roomID)
 			gameRoom := m.GameRooms[roomID]
+			playerID := m.Rooms[roomID][conn]
+			log.Printf("game turnID: %v, playerID: %v", gameRoom.TurnID, playerID)
 			if !gameRoom.IsStarted {
+				log.Printf("game is not started")
 				res := events.NewPlayCardResponse(false, nil)
 				conn.WriteJSON(res)
 				break
 			}
-			playerID := m.Rooms[roomID][conn]
+
+			if gameRoom.TurnID != playerID {
+				log.Printf("its not your turn yet")
+				res := events.NewPlayCardResponse(false, nil)
+				conn.WriteJSON(res)
+				break
+			}
+
 			playerIndex := -1
 			for i, p := range gameRoom.Players {
 				if p.PlayerID == playerID {
@@ -200,10 +219,10 @@ func (m GameRouter) HandleGameEvent(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-			player := (gameRoom.Players)[playerIndex]
-			log.Printf("players hand before playing: %v", player.Hand)
-			log.Printf("players hand before playing: %v", (gameRoom.Players)[playerIndex].Hand)
-			playedCard := (player.Hand)[gameRequest.HandIndex]
+			player := gameRoom.Players[playerIndex]
+			// log.Printf("players hand before playing: %v", player.Hand)
+			// log.Printf("players hand before playing: %v", gameRoom.Players[playerIndex].Hand)
+			playedCard := player.Hand[gameRequest.HandIndex]
 			log.Printf("Players is playing: %v", playedCard)
 
 			var res events.PlayCardResponse
@@ -215,18 +234,30 @@ func (m GameRouter) HandleGameEvent(w http.ResponseWriter, r *http.Request) {
 				drawnCard := gameRoom.PickCard(1)
 				player.AddHand(drawnCard)
 				gameRoom.PutCard([]models.Card{playedCard})
+
+				var nextPlayerIndex int
+				if gameRoom.IsClockwise {
+					nextPlayerIndex = (playerIndex + 1) % len(gameRoom.Players)
+
+				} else {
+					// nextPlayerIndex = (playerIndex - 1) % len(gameRoom.Players)
+					nextPlayerIndex = common.Mod(playerIndex-1, len(gameRoom.Players))
+				}
+
+				gameRoom.TurnID = gameRoom.Players[nextPlayerIndex].PlayerID
 				log.Printf("players hand after playing: %v", player.Hand)
 				log.Printf("players hand after playing: %v", (gameRoom.Players)[playerIndex].Hand)
 
 				res = events.NewPlayCardResponse(isPlayable, player.Hand)
 				conn.WriteJSON(res)
 
-				broadcast := events.NewPlayCardBroadcast(playedCard, gameRoom.Count, gameRoom.IsClockwise)
+				broadcast := events.NewPlayCardBroadcast(playedCard, gameRoom.Count, gameRoom.IsClockwise, nextPlayerIndex)
 				for connection := range m.Rooms[roomID] {
 					connection.WriteJSON(broadcast)
 				}
 
 			} else {
+				log.Printf("unplayable card")
 				res = events.NewPlayCardResponse(false, nil)
 				conn.WriteJSON(res)
 			}

@@ -36,6 +36,7 @@ type Room struct {
 	IsClockwise bool      `json:"is_clockwise,omitempty"`
 	Players     []*Player `json:"players,omitempty"`
 	Deck        []Card    `json:"-"`
+	TurnID      string    `json:"id_turn"`
 	Count       int       `json:"count"`
 }
 
