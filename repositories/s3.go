@@ -32,7 +32,7 @@ func (m *s3Repo) UploadImage(file multipart.File, fileHeader *multipart.FileHead
 	buffer := make([]byte, size)
 	file.Read(buffer)
 
-	tempFileName := "pictures/" + bson.NewObjectId().Hex() + filepath.Ext(fileHeader.Filename)
+	tempFileName := "cepex/" + bson.NewObjectId().Hex() + filepath.Ext(fileHeader.Filename)
 
 	_, err := s3.New(m.session).PutObject(&s3.PutObjectInput{
 		Bucket:               aws.String(configs.S3.BUCKET),

@@ -58,7 +58,7 @@ type StartGameBroadcast struct {
 
 type PlayCardResponse struct {
 	EventType string        `json:"event_type,omitempty"`
-	Success   bool          `json:"success,omitempty"`
+	Success   bool          `json:"success"`
 	NewHand   []models.Card `json:"new_hand"`
 	// HandIndex int         `json:"hand_index,omitempty"`
 	// DrawnCard models.Card `json:"drawn_card,omitempty"`
@@ -80,6 +80,11 @@ type TurnBroadcast struct {
 type MessageBroadcast struct {
 	EventType string `json:"event_type,omitempty"`
 	Sender    string `json:"sender,emitempty"`
+	Message   string `json:"message,omitempty"`
+}
+
+type NotificationBroadcast struct {
+	EventType string `json:"event_type,omitempty"`
 	Message   string `json:"message,omitempty"`
 }
 
@@ -147,6 +152,15 @@ func NewMessageBroadcast(message, sender string) MessageBroadcast {
 		EventType: "message-broadcast",
 		Message:   message,
 		Sender:    sender,
+	}
+
+	return result
+}
+
+func NewNotificationBroadcast(message string) NotificationBroadcast {
+	result := NotificationBroadcast{
+		EventType: "notification-broadcast",
+		Message:   message,
 	}
 
 	return result

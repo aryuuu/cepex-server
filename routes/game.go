@@ -178,12 +178,13 @@ func (m GameRouter) HandleGameEvent(w http.ResponseWriter, r *http.Request) {
 				conn.WriteJSON(res)
 
 			} else {
-				gameRoom.IsStarted = true
+				// gameRoom.IsStarted = true
+				gameRoom.StartGame()
 				starterIndex := rand.Intn(len(gameRoom.Players))
 				gameRoom.TurnID = gameRoom.Players[starterIndex].PlayerID
 				notifContent := "game started, " + gameRoom.Players[starterIndex].Name + "'s turn"
 
-				notification := events.NewMessageBroadcast(notifContent, "system")
+				notification := events.NewNotificationBroadcast(notifContent)
 				res := events.NewStartGameBroadcast(starterIndex)
 				for connection := range room {
 					connection.WriteJSON(res)
@@ -220,6 +221,14 @@ func (m GameRouter) HandleGameEvent(w http.ResponseWriter, r *http.Request) {
 			}
 
 			player := gameRoom.Players[playerIndex]
+
+			if !player.IsAlive {
+				log.Printf("this player is dead")
+				res := events.NewPlayCardResponse(false, nil)
+				conn.WriteJSON(res)
+				break
+			}
+
 			// log.Printf("players hand before playing: %v", player.Hand)
 			// log.Printf("players hand before playing: %v", gameRoom.Players[playerIndex].Hand)
 			playedCard := player.Hand[gameRequest.HandIndex]
