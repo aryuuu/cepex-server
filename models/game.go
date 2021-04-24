@@ -5,8 +5,13 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
+
+type GameUsecase interface {
+	Connect(conn *websocket.Conn, roomID string)
+}
 
 // Card :nodoc:
 type Card struct {
@@ -49,7 +54,27 @@ type SocketClient struct {
 	conn *websocket.Conn
 }
 
-type GameUsecase interface {
+func NewPlayer(name, avatarUrl string) *Player {
+	return &Player{
+		Name:      name,
+		AvatarURL: avatarUrl,
+		PlayerID:  uuid.NewString(),
+		IsAlive:   true,
+		Hand:      []Card{},
+	}
+}
+
+func NewRoom(id, host string, capacity int) *Room {
+	return &Room{
+		RoomID:      id,
+		Capacity:    capacity,
+		HostID:      host,
+		IsStarted:   false,
+		IsClockwise: false,
+		Players:     []*Player{},
+		Deck:        NewDeck(),
+		Count:       0,
+	}
 }
 
 func NewDeck() []Card {
