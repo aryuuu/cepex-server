@@ -33,6 +33,7 @@ func (u *gameUsecase) Connect(conn *websocket.Conn, roomID string) {
 				log.Print("IsUnexpectedCloseError()", err)
 			} else {
 				log.Printf("expected close error: %v", err)
+				u.kickPlayer(conn, roomID)
 			}
 			return
 		}
@@ -91,38 +92,7 @@ func (u *gameUsecase) Connect(conn *websocket.Conn, roomID string) {
 			}
 			break
 		case "leave-room":
-			log.Printf("Client trying to leave room %v", roomID)
-
-			room, ok := u.Rooms[roomID]
-			playerID := u.Rooms[roomID][conn]
-			res := events.NewLeaveRoomResponse(true)
-			conn.WriteJSON(res)
-
-			if ok {
-				broadcast := events.NewLeaveRoomBroadcast(playerID)
-				for connection := range room {
-					connection.WriteJSON(broadcast)
-				}
-			}
-
-			playerIndex := -1
-			for i, p := range u.GameRooms[roomID].Players {
-				if p.PlayerID == playerID {
-					playerIndex = i
-					break
-				}
-			}
-
-			gameRoom := u.GameRooms[roomID]
-			gameRoom.RemovePlayer(playerIndex)
-			delete(u.Rooms[roomID], conn)
-
-			// delete empty room
-			if len(u.GameRooms[roomID].Players) == 0 {
-				log.Printf("delete room %v", roomID)
-				delete(u.GameRooms, roomID)
-				delete(u.Rooms, roomID)
-			}
+			u.kickPlayer(conn, roomID)
 
 			break
 		case "start-game":
@@ -136,7 +106,6 @@ func (u *gameUsecase) Connect(conn *websocket.Conn, roomID string) {
 				conn.WriteJSON(res)
 
 			} else {
-				// gameRoom.IsStarted = true
 				gameRoom.StartGame()
 				starterIndex := rand.Intn(len(gameRoom.Players))
 				gameRoom.TurnID = gameRoom.Players[starterIndex].PlayerID
@@ -152,7 +121,6 @@ func (u *gameUsecase) Connect(conn *websocket.Conn, roomID string) {
 			break
 
 		case "play-card":
-			// log.Printf("Client is playing card on room %v", roomID)
 			gameRoom := u.GameRooms[roomID]
 			playerID := u.Rooms[roomID][conn]
 			log.Printf("game turnID: %v, playerID: %v", gameRoom.TurnID, playerID)
@@ -178,7 +146,8 @@ func (u *gameUsecase) Connect(conn *websocket.Conn, roomID string) {
 				}
 			}
 
-			player := gameRoom.Players[playerIndex]
+			// player := gameRoom.Players[playerIndex]
+			player := gameRoom.PlayerMap[playerID]
 
 			if !player.IsAlive {
 				log.Printf("this player is dead")
@@ -207,7 +176,6 @@ func (u *gameUsecase) Connect(conn *websocket.Conn, roomID string) {
 					nextPlayerIndex = (playerIndex + 1) % len(gameRoom.Players)
 
 				} else {
-					// nextPlayerIndex = (playerIndex - 1) % len(gameRoom.Players)
 					nextPlayerIndex = common.Mod(playerIndex-1, len(gameRoom.Players))
 				}
 
@@ -235,13 +203,7 @@ func (u *gameUsecase) Connect(conn *websocket.Conn, roomID string) {
 			room, ok := u.Rooms[roomID]
 			if ok {
 				playerID := room[conn]
-				var playerName string
-				for _, p := range u.GameRooms[roomID].Players {
-					if p.PlayerID == playerID {
-						playerName = p.Name
-						break
-					}
-				}
+				playerName := u.GameRooms[roomID].PlayerMap[playerID].Name
 
 				log.Printf("player %s send chat", playerName)
 				broadcast := events.NewMessageBroadcast(gameRequest.Message, playerName)
@@ -252,13 +214,41 @@ func (u *gameUsecase) Connect(conn *websocket.Conn, roomID string) {
 		default:
 			break
 		}
+	}
+}
 
-		// fmt.Printf("%s sent: %s\n", conn.RemoteAddr(), string(message))
+func (u *gameUsecase) kickPlayer(conn *websocket.Conn, roomID string) {
+	log.Printf("Client trying to leave room %v", roomID)
 
-		// if err = conn.WriteMessage(messageType, message); err != nil {
-		// 	log.Print(err)
-		// 	return
-		// }
+	room, ok := u.Rooms[roomID]
+	playerID := u.Rooms[roomID][conn]
+	res := events.NewLeaveRoomResponse(true)
+	conn.WriteJSON(res)
+
+	if ok {
+		broadcast := events.NewLeaveRoomBroadcast(playerID)
+		for connection := range room {
+			connection.WriteJSON(broadcast)
+		}
+	}
+
+	playerIndex := -1
+	for i, p := range u.GameRooms[roomID].Players {
+		if p.PlayerID == playerID {
+			playerIndex = i
+			break
+		}
+	}
+
+	gameRoom := u.GameRooms[roomID]
+	gameRoom.RemovePlayer(playerIndex)
+	delete(u.Rooms[roomID], conn)
+
+	// delete empty room
+	if len(u.GameRooms[roomID].Players) == 0 {
+		log.Printf("delete room %v", roomID)
+		delete(u.GameRooms, roomID)
+		delete(u.Rooms, roomID)
 	}
 }
 

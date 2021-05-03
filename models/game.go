@@ -34,15 +34,16 @@ type Player struct {
 
 // Room :nodoc:
 type Room struct {
-	RoomID      string    `json:"id_room,omitempty"`
-	Capacity    int       `json:"capacity,omitempty"`
-	HostID      string    `json:"id_host,omitempty"`
-	IsStarted   bool      `json:"is_started,omitempty"`
-	IsClockwise bool      `json:"is_clockwise,omitempty"`
-	Players     []*Player `json:"players,omitempty"`
-	Deck        []Card    `json:"-"`
-	TurnID      string    `json:"id_turn"`
-	Count       int       `json:"count"`
+	RoomID      string             `json:"id_room,omitempty"`
+	Capacity    int                `json:"capacity,omitempty"`
+	HostID      string             `json:"id_host,omitempty"`
+	IsStarted   bool               `json:"is_started,omitempty"`
+	IsClockwise bool               `json:"is_clockwise,omitempty"`
+	Players     []*Player          `json:"players,omitempty"`
+	PlayerMap   map[string]*Player `json:"-"`
+	Deck        []Card             `json:"-"`
+	TurnID      string             `json:"id_turn"`
+	Count       int                `json:"count"`
 }
 
 type SocketServer struct {
@@ -72,6 +73,7 @@ func NewRoom(id, host string, capacity int) *Room {
 		IsStarted:   false,
 		IsClockwise: false,
 		Players:     []*Player{},
+		PlayerMap:   make(map[string]*Player),
 		Deck:        NewDeck(),
 		Count:       0,
 	}
@@ -169,10 +171,12 @@ func (r *Room) PlayCard(card Card, isAdd bool) bool {
 }
 
 func (r *Room) AddPlayer(player *Player) {
+	r.PlayerMap[player.PlayerID] = player
 	r.Players = append(r.Players, player)
 }
 
 func (r *Room) RemovePlayer(playerIndex int) {
+	delete(r.PlayerMap, r.Players[playerIndex].PlayerID)
 	r.Players = append(r.Players[:playerIndex], r.Players[playerIndex+1:]...)
 }
 
