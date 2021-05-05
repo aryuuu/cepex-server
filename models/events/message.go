@@ -9,6 +9,7 @@ type GameRequest struct {
 	Message    string `json:"message,omitempty"`
 	HandIndex  int    `json:"hand_index,omitempty"`
 	IsAdd      bool   `json:"is_add,omitempty"`
+	PlayerID   string `json:"id_player,omitempty"`
 }
 
 type GameResponse struct {
@@ -25,7 +26,7 @@ type CreateRoomResponse struct {
 
 type JoinRoomResponse struct {
 	EventType string        `json:"event_type,omitempty"`
-	Success   bool          `json:"success,omitempty"`
+	Success   bool          `json:"success"`
 	NewRoom   models.Room   `json:"new_room,omitempty"`
 	Hand      []models.Card `json:"hand,omitempty"`
 }
@@ -79,7 +80,7 @@ type TurnBroadcast struct {
 
 type MessageBroadcast struct {
 	EventType string `json:"event_type,omitempty"`
-	Sender    string `json:"sender,emitempty"`
+	Sender    string `json:"sender,omitempty"`
 	Message   string `json:"message,omitempty"`
 }
 
