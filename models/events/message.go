@@ -18,17 +18,17 @@ type GameResponse struct {
 }
 
 type CreateRoomResponse struct {
-	EventType string        `json:"event_type,omitempty"`
-	Success   bool          `json:"success,omitempty"`
-	NewRoom   models.Room   `json:"room,omitempty"`
-	Hand      []models.Card `json:"hand"`
+	EventType string      `json:"event_type,omitempty"`
+	Success   bool        `json:"success,omitempty"`
+	NewRoom   models.Room `json:"room,omitempty"`
+	// Hand      []models.Card `json:"hand"`
 }
 
 type JoinRoomResponse struct {
-	EventType string        `json:"event_type,omitempty"`
-	Success   bool          `json:"success"`
-	NewRoom   models.Room   `json:"new_room,omitempty"`
-	Hand      []models.Card `json:"hand,omitempty"`
+	EventType string      `json:"event_type,omitempty"`
+	Success   bool        `json:"success"`
+	NewRoom   models.Room `json:"new_room,omitempty"`
+	// Hand      []models.Card `json:"hand"`
 }
 
 type JoinRoomBroadcast struct {
@@ -55,6 +55,11 @@ type StartGameResponse struct {
 type StartGameBroadcast struct {
 	EventType    string `json:"event_type,omitempty"`
 	StarterIndex int    `json:"starter_idx"`
+}
+
+type InitialHandResponse struct {
+	EventType string        `json:"event_type"`
+	NewHand   []models.Card `json:"new_hand"`
 }
 
 type PlayCardResponse struct {
@@ -89,7 +94,7 @@ type NotificationBroadcast struct {
 	Message   string `json:"message,omitempty"`
 }
 
-func NewCreateRoomResponse(success bool, roomID string, host *models.Player, hand []models.Card) CreateRoomResponse {
+func NewCreateRoomResponse(success bool, roomID string, host *models.Player) CreateRoomResponse {
 	players := []*models.Player{host}
 
 	result := CreateRoomResponse{
@@ -104,18 +109,16 @@ func NewCreateRoomResponse(success bool, roomID string, host *models.Player, han
 			Players:     players,
 			Count:       0,
 		},
-		Hand: hand,
 	}
 
 	return result
 }
 
-func NewJoinRoomResponse(success bool, room *models.Room, hand []models.Card) JoinRoomResponse {
+func NewJoinRoomResponse(success bool, room *models.Room) JoinRoomResponse {
 	result := JoinRoomResponse{
 		EventType: "join-room",
 		Success:   success,
 		NewRoom:   *room,
-		Hand:      hand,
 	}
 
 	return result
@@ -180,6 +183,15 @@ func NewStartGameBroadcast(starterIndex int) StartGameBroadcast {
 	result := StartGameBroadcast{
 		EventType:    "start-game-broadcast",
 		StarterIndex: starterIndex,
+	}
+
+	return result
+}
+
+func NewInitialHandResponse(hand []models.Card) InitialHandResponse {
+	result := InitialHandResponse{
+		EventType: "initial-hand",
+		NewHand:   hand,
 	}
 
 	return result

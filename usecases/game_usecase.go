@@ -2,11 +2,9 @@ package usecases
 
 import (
 	"log"
-	"math/rand"
 
 	"github.com/aryuuu/cepex-server/models"
 	"github.com/aryuuu/cepex-server/models/events"
-	"github.com/aryuuu/cepex-server/utils/common"
 	"github.com/gorilla/websocket"
 )
 
@@ -65,20 +63,25 @@ func (u *gameUsecase) createRoom(conn *websocket.Conn, roomID string, gameReques
 	_, ok := u.Rooms[roomID]
 
 	if ok {
-		conn.WriteJSON(events.NewCreateRoomResponse(false, roomID, &models.Player{}, nil))
+		conn.WriteJSON(events.NewCreateRoomResponse(false, roomID, &models.Player{}))
 	} else {
 		player := models.NewPlayer(gameRequest.ClientName, gameRequest.AvatarURL)
-		u.Rooms[roomID] = make(map[*websocket.Conn]string)
-		u.Rooms[roomID][conn] = player.PlayerID
 
-		gameRoom := models.NewRoom(roomID, player.PlayerID, 4)
+		u.createConnectionRoom(roomID, conn)
+		u.createGameRoom(roomID, player.PlayerID)
+		u.registerPlayer(roomID, conn, player)
 
-		gameRoom.AddPlayer(player)
-		u.GameRooms[roomID] = gameRoom
-		pickedCard := gameRoom.PickCard(2)
-		player.AddHand(pickedCard)
+		// u.Rooms[roomID] = make(map[*websocket.Conn]string)
+		// u.Rooms[roomID][conn] = player.PlayerID
 
-		res := events.NewCreateRoomResponse(true, roomID, player, player.Hand)
+		// gameRoom := models.NewRoom(roomID, player.PlayerID, 4)
+		// u.GameRooms[roomID] = gameRoom
+		// gameRoom.AddPlayer(player)
+
+		// pickedCard := gameRoom.PickCard(2)
+		// player.AddHand(pickedCard)
+
+		res := events.NewCreateRoomResponse(true, roomID, player)
 		conn.WriteJSON(res)
 	}
 }
@@ -86,29 +89,22 @@ func (u *gameUsecase) createRoom(conn *websocket.Conn, roomID string, gameReques
 func (u *gameUsecase) joinRoom(conn *websocket.Conn, roomID string, gameRequest events.GameRequest) {
 	log.Printf("Client trying to join room %v", roomID)
 
-	room, ok := u.Rooms[roomID]
+	_, ok := u.Rooms[roomID]
 
 	if ok {
 		log.Printf("found room %v", roomID)
 		gameRoom := u.GameRooms[roomID]
 		player := models.NewPlayer(gameRequest.ClientName, gameRequest.AvatarURL)
-		player.Hand = gameRoom.PickCard(2)
+		u.registerPlayer(roomID, conn, player)
 
-		room[conn] = player.PlayerID
-		gameRoom.AddPlayer(player)
-
-		res := events.NewJoinRoomResponse(ok, gameRoom, player.Hand)
+		res := events.NewJoinRoomResponse(ok, gameRoom)
 		conn.WriteJSON(res)
 
 		broadcast := events.NewJoinRoomBroadcast(player)
-		for connection, playerID := range room {
-			if playerID != player.PlayerID {
-				connection.WriteJSON(broadcast)
-			}
-		}
+		u.broadcastMessage(roomID, broadcast)
 	} else {
 		log.Printf("room %v does not exist", roomID)
-		res := events.NewJoinRoomResponse(ok, &models.Room{}, nil)
+		res := events.NewJoinRoomResponse(ok, &models.Room{})
 		conn.WriteJSON(res)
 	}
 }
@@ -124,17 +120,119 @@ func (u *gameUsecase) kickPlayer(conn *websocket.Conn, roomID string, gameReques
 		playerID = gameRequest.PlayerID
 	}
 
-	room, ok := u.Rooms[roomID]
+	_, ok := u.Rooms[roomID]
 	res := events.NewLeaveRoomResponse(true)
 	conn.WriteJSON(res)
 
 	if ok {
 		broadcast := events.NewLeaveRoomBroadcast(playerID)
-		for connection := range room {
-			connection.WriteJSON(broadcast)
-		}
+		u.broadcastMessage(roomID, broadcast)
 	}
 
+	u.unregisterPlayer(roomID, conn, playerID)
+}
+
+func (u *gameUsecase) startGame(conn *websocket.Conn, roomID string) {
+	log.Printf("Client trying to start game on room %v", roomID)
+	gameRoom := u.GameRooms[roomID]
+	playerID := u.Rooms[roomID][conn]
+
+	if playerID != gameRoom.HostID {
+		res := events.NewStartGameResponse(false)
+		conn.WriteJSON(res)
+
+	} else {
+		starterIndex := gameRoom.StartGame()
+
+		u.dealCard(roomID)
+
+		notifContent := "game started, " + gameRoom.Players[starterIndex].Name + "'s turn"
+		notification := events.NewNotificationBroadcast(notifContent)
+		res := events.NewStartGameBroadcast(starterIndex)
+
+		u.broadcastMessage(roomID, res)
+		u.broadcastMessage(roomID, notification)
+	}
+}
+
+func (u *gameUsecase) playCard(conn *websocket.Conn, roomID string, gameRequest events.GameRequest) {
+	gameRoom := u.GameRooms[roomID]
+	playerID := u.Rooms[roomID][conn]
+	log.Printf("game turnID: %v, playerID: %v", gameRoom.TurnID, playerID)
+	if !gameRoom.IsStarted {
+		log.Printf("game is not started")
+		res := events.NewPlayCardResponse(false, nil)
+		conn.WriteJSON(res)
+		return
+	}
+
+	if gameRoom.TurnID != playerID {
+		log.Printf("its not your turn yet")
+		res := events.NewPlayCardResponse(false, nil)
+		conn.WriteJSON(res)
+		return
+	}
+
+	playerIndex := gameRoom.GetPlayerIndex(playerID)
+
+	player := gameRoom.PlayerMap[playerID]
+
+	if !player.IsAlive {
+		log.Printf("this player is dead")
+		res := events.NewPlayCardResponse(false, nil)
+		conn.WriteJSON(res)
+		return
+	}
+
+	log.Printf("players hand before playing: %v", gameRoom.Players[playerIndex].Hand)
+	playedCard := player.Hand[gameRequest.HandIndex]
+	log.Printf("Players is playing: %v", playedCard)
+
+	var res events.PlayCardResponse
+
+	if err := gameRoom.PlayCard(playerID, gameRequest.HandIndex, gameRequest.IsAdd); err != nil {
+		res = events.NewPlayCardResponse(false, nil)
+		conn.WriteJSON(res)
+		return
+	}
+
+	res = events.NewPlayCardResponse(true, player.Hand)
+	conn.WriteJSON(res)
+
+	nextPlayerIndex := gameRoom.NextPlayer(playerIndex)
+	broadcast := events.NewPlayCardBroadcast(playedCard, gameRoom.Count, gameRoom.IsClockwise, nextPlayerIndex)
+	u.broadcastMessage(roomID, broadcast)
+}
+
+func (u *gameUsecase) broadcastChat(conn *websocket.Conn, roomID string, gameRequest events.GameRequest) {
+	log.Printf("Client is sending chat on room %v", roomID)
+
+	room, ok := u.Rooms[roomID]
+	if ok {
+		playerID := room[conn]
+		playerName := u.GameRooms[roomID].PlayerMap[playerID].Name
+
+		log.Printf("player %s send chat", playerName)
+		broadcast := events.NewMessageBroadcast(gameRequest.Message, playerName)
+		u.broadcastMessage(roomID, broadcast)
+	}
+}
+
+func (u *gameUsecase) createConnectionRoom(roomID string, conn *websocket.Conn) {
+	u.Rooms[roomID] = make(map[*websocket.Conn]string)
+}
+
+func (u *gameUsecase) createGameRoom(roomID string, hostID string) {
+	gameRoom := models.NewRoom(roomID, hostID, 4)
+	u.GameRooms[roomID] = gameRoom
+}
+
+func (u *gameUsecase) registerPlayer(roomID string, conn *websocket.Conn, player *models.Player) {
+	u.Rooms[roomID][conn] = player.PlayerID
+	u.GameRooms[roomID].AddPlayer(player)
+}
+
+func (u *gameUsecase) unregisterPlayer(roomID string, conn *websocket.Conn, playerID string) {
 	playerIndex := -1
 	for i, p := range u.GameRooms[roomID].Players {
 		if p.PlayerID == playerID {
@@ -155,132 +253,27 @@ func (u *gameUsecase) kickPlayer(conn *websocket.Conn, roomID string, gameReques
 	}
 }
 
-func (u *gameUsecase) startGame(conn *websocket.Conn, roomID string) {
-	log.Printf("Client trying to start game on room %v", roomID)
+func (u *gameUsecase) broadcastMessage(roomID string, message interface{}) {
 	room := u.Rooms[roomID]
-	gameRoom := u.GameRooms[roomID]
-	playerID := u.Rooms[roomID][conn]
-
-	if playerID != gameRoom.HostID {
-		res := events.NewStartGameResponse(false)
-		conn.WriteJSON(res)
-
-	} else {
-		gameRoom.StartGame()
-		starterIndex := rand.Intn(len(gameRoom.Players))
-		gameRoom.TurnID = gameRoom.Players[starterIndex].PlayerID
-		notifContent := "game started, " + gameRoom.Players[starterIndex].Name + "'s turn"
-
-		notification := events.NewNotificationBroadcast(notifContent)
-		res := events.NewStartGameBroadcast(starterIndex)
-		for connection := range room {
-			connection.WriteJSON(res)
-			connection.WriteJSON(notification)
-		}
+	for connection := range room {
+		connection.WriteJSON(message)
 	}
 }
 
-func (u *gameUsecase) playCard(conn *websocket.Conn, roomID string, gameRequest events.GameRequest) {
-	gameRoom := u.GameRooms[roomID]
-	playerID := u.Rooms[roomID][conn]
-	log.Printf("game turnID: %v, playerID: %v", gameRoom.TurnID, playerID)
-	if !gameRoom.IsStarted {
-		log.Printf("game is not started")
-		res := events.NewPlayCardResponse(false, nil)
-		conn.WriteJSON(res)
-		// break
-		return
-	}
+func (u *gameUsecase) dealCard(roomID string) {
+	room := u.Rooms[roomID]
 
-	if gameRoom.TurnID != playerID {
-		log.Printf("its not your turn yet")
-		res := events.NewPlayCardResponse(false, nil)
-		conn.WriteJSON(res)
-		// break
-		return
-	}
-
-	playerIndex := -1
-	for i, p := range gameRoom.Players {
-		if p.PlayerID == playerID {
-			playerIndex = i
-			break
-		}
-	}
-
-	// player := gameRoom.Players[playerIndex]
-	player := gameRoom.PlayerMap[playerID]
-
-	if !player.IsAlive {
-		log.Printf("this player is dead")
-		res := events.NewPlayCardResponse(false, nil)
-		conn.WriteJSON(res)
-		// break
-		return
-	}
-
-	// log.Printf("players hand before playing: %v", player.Hand)
-	log.Printf("players hand before playing: %v", gameRoom.Players[playerIndex].Hand)
-	playedCard := player.Hand[gameRequest.HandIndex]
-	log.Printf("Players is playing: %v", playedCard)
-
-	var res events.PlayCardResponse
-
-	isPlayable := gameRoom.PlayCard(playedCard, gameRequest.IsAdd)
-	isAvailable := player.PlayHand(gameRequest.HandIndex)
-
-	if isPlayable && isAvailable {
-		drawnCard := gameRoom.PickCard(1)
-		player.AddHand(drawnCard)
-		gameRoom.PutCard([]models.Card{playedCard})
-
-		var nextPlayerIndex int
-		if gameRoom.IsClockwise {
-			nextPlayerIndex = (playerIndex + 1) % len(gameRoom.Players)
-
-		} else {
-			nextPlayerIndex = common.Mod(playerIndex-1, len(gameRoom.Players))
-		}
-
-		gameRoom.TurnID = gameRoom.Players[nextPlayerIndex].PlayerID
-		// log.Printf("players hand after playing: %v", player.Hand)
-		log.Printf("players hand after playing: %v", (gameRoom.Players)[playerIndex].Hand)
-
-		res = events.NewPlayCardResponse(isPlayable, player.Hand)
-		conn.WriteJSON(res)
-
-		broadcast := events.NewPlayCardBroadcast(playedCard, gameRoom.Count, gameRoom.IsClockwise, nextPlayerIndex)
-		for connection := range u.Rooms[roomID] {
-			connection.WriteJSON(broadcast)
-		}
-
-	} else {
-		log.Printf("unplayable card")
-		res = events.NewPlayCardResponse(false, nil)
-		conn.WriteJSON(res)
+	for connection, playerID := range room {
+		player := u.GameRooms[roomID].PlayerMap[playerID]
+		message := events.NewInitialHandResponse(player.Hand)
+		connection.WriteJSON(message)
 	}
 }
 
-func (u *gameUsecase) broadcastChat(conn *websocket.Conn, roomID string, gameRequest events.GameRequest) {
-	log.Printf("Client is sending chat on room %v", roomID)
+// func (u *gameUsecase) SendMessage(connID string, message interface{}) {
 
-	room, ok := u.Rooms[roomID]
-	if ok {
-		playerID := room[conn]
-		playerName := u.GameRooms[roomID].PlayerMap[playerID].Name
+// }
 
-		log.Printf("player %s send chat", playerName)
-		broadcast := events.NewMessageBroadcast(gameRequest.Message, playerName)
-		for connection := range room {
-			connection.WriteJSON(broadcast)
-		}
-	}
-}
+// func (u *gameUsecase) BroadcastMessage(roomID string, message interface{}) {
 
-func (u *gameUsecase) SendMessage(connID string, message interface{}) {
-
-}
-
-func (u *gameUsecase) BroadcastMessage(roomID string, message interface{}) {
-
-}
+// }

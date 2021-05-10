@@ -1,10 +1,12 @@
 package models
 
 import (
+	"errors"
 	"log"
 	"math/rand"
 	"time"
 
+	"github.com/aryuuu/cepex-server/utils/common"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
@@ -25,7 +27,7 @@ type Card struct {
 
 // Player :nodoc:
 type Player struct {
-	PlayerID  string `json:"id_player,omitplayer"`
+	PlayerID  string `json:"id_player,omitempty"`
 	Name      string `json:"name,omitempty"`
 	AvatarURL string `json:"avatar_url"`
 	IsAlive   bool   `json:"is_alive"`
@@ -46,21 +48,21 @@ type Room struct {
 	Count       int                `json:"count"`
 }
 
-type SocketServer struct {
-	clients map[uint32]*SocketClient
-}
+// type SocketServer struct {
+// 	clients map[uint32]*SocketClient
+// }
 
-type SocketClient struct {
-	ID   uint32
-	conn *websocket.Conn
-}
+// type SocketClient struct {
+// 	ID   uint32
+// 	conn *websocket.Conn
+// }
 
 func NewPlayer(name, avatarUrl string) *Player {
 	return &Player{
 		Name:      name,
 		AvatarURL: avatarUrl,
 		PlayerID:  uuid.NewString(),
-		IsAlive:   true,
+		IsAlive:   false,
 		Hand:      []Card{},
 	}
 }
@@ -102,14 +104,18 @@ func (c Card) IsSpecial() bool {
 	return c.Rank == 1 || c.Rank == 4 || c.Rank == 7 || c.Rank == 11 || c.Rank == 12 || c.Rank == 13
 }
 
-func (r *Room) StartGame() bool {
+func (r *Room) StartGame() int {
 	r.IsStarted = true
 
 	for _, player := range r.Players {
 		player.IsAlive = true
+		player.Hand = r.PickCard(2)
 	}
 
-	return true
+	starterIndex := rand.Intn(len(r.Players))
+	r.TurnID = r.Players[starterIndex].PlayerID
+
+	return starterIndex
 }
 
 func (r *Room) PickCard(n int) []Card {
@@ -134,7 +140,14 @@ func (r *Room) PutCard(cards []Card) {
 	}
 }
 
-func (r *Room) PlayCard(card Card, isAdd bool) bool {
+func (r *Room) PlayCard(playerID string, handIndex int, isAdd bool) error {
+	player := r.PlayerMap[playerID]
+	card := player.Hand[handIndex]
+
+	if err := player.PlayHand(handIndex); err != nil {
+		return err
+	}
+
 	factor := 1
 	if !isAdd {
 		factor = -1
@@ -144,16 +157,14 @@ func (r *Room) PlayCard(card Card, isAdd bool) bool {
 		if r.Count+card.Rank <= 100 {
 			r.Count += card.Rank
 		} else {
-			return false
+			return errors.New("Card is unplayable")
 		}
 	} else {
 		switch card.Rank {
 		case 1:
 			r.Count += factor * 1
-			break
 		case 4:
 			r.IsClockwise = !r.IsClockwise
-			break
 		case 7:
 			break
 		case 11:
@@ -167,7 +178,25 @@ func (r *Room) PlayCard(card Card, isAdd bool) bool {
 		}
 
 	}
-	return true
+
+	player.AddHand(r.PickCard(1))
+	r.PutCard([]Card{card})
+
+	return nil
+}
+
+func (r *Room) NextPlayer(playerIndex int) int {
+	var nextPlayerIndex int
+	if r.IsClockwise {
+		nextPlayerIndex = (playerIndex + 1) % len(r.Players)
+
+	} else {
+		nextPlayerIndex = common.Mod(playerIndex-1, len(r.Players))
+	}
+
+	r.TurnID = r.Players[nextPlayerIndex].PlayerID
+
+	return nextPlayerIndex
 }
 
 func (r *Room) AddPlayer(player *Player) {
@@ -180,9 +209,21 @@ func (r *Room) RemovePlayer(playerIndex int) {
 	r.Players = append(r.Players[:playerIndex], r.Players[playerIndex+1:]...)
 }
 
-func (p *Player) PlayHand(index int) bool {
+func (r *Room) GetPlayerIndex(playerID string) int {
+	playerIndex := -1
+	for i, p := range r.Players {
+		if p.PlayerID == playerID {
+			playerIndex = i
+			break
+		}
+	}
+
+	return playerIndex
+}
+
+func (p *Player) PlayHand(index int) error {
 	if index >= len(p.Hand) {
-		return false
+		return errors.New("Card is unavailable")
 	}
 
 	if index == 0 {
@@ -191,7 +232,7 @@ func (p *Player) PlayHand(index int) bool {
 		p.Hand = p.Hand[:1]
 	}
 
-	return true
+	return nil
 }
 
 func (p *Player) AddHand(card []Card) {
