@@ -158,7 +158,7 @@ func (u *gameUsecase) startGame(conn *websocket.Conn, roomID string) {
 func (u *gameUsecase) playCard(conn *websocket.Conn, roomID string, gameRequest events.GameRequest) {
 	gameRoom := u.GameRooms[roomID]
 	playerID := u.Rooms[roomID][conn]
-	log.Printf("game turnID: %v, playerID: %v", gameRoom.TurnID, playerID)
+	// log.Printf("game turnID: %v, playerID: %v", gameRoom.TurnID, playerID)
 	if !gameRoom.IsStarted {
 		log.Printf("game is not started")
 		res := events.NewPlayCardResponse(false, nil)
@@ -184,19 +184,39 @@ func (u *gameUsecase) playCard(conn *websocket.Conn, roomID string, gameRequest 
 		return
 	}
 
-	log.Printf("players hand before playing: %v", gameRoom.Players[playerIndex].Hand)
+	// log.Printf("players hand before playing: %v", gameRoom.Players[playerIndex].Hand)
+	for _, p := range gameRoom.Players {
+		log.Printf("%v's card %v", p.Name, p.Hand)
+	}
+
 	playedCard := player.Hand[gameRequest.HandIndex]
-	log.Printf("Players is playing: %v", playedCard)
+	log.Printf("%v is playing: %v", player.Name, playedCard)
 
 	var res events.PlayCardResponse
 
+	success := true
 	if err := gameRoom.PlayCard(playerID, gameRequest.HandIndex, gameRequest.IsAdd); err != nil {
-		res = events.NewPlayCardResponse(false, nil)
-		conn.WriteJSON(res)
-		return
+		success = false
 	}
 
-	res = events.NewPlayCardResponse(true, player.Hand)
+	if len(player.Hand) == 0 {
+		player.IsAlive = false
+		deadBroadcast := events.NewDeadPlayerBroadcast(player.PlayerID)
+		u.broadcastMessage(roomID, deadBroadcast)
+	}
+
+	for _, p := range gameRoom.Players {
+		log.Printf("%v's card %v", p.Name, p.Hand)
+	}
+
+	if winner := gameRoom.GetWinner(); winner != "" {
+		// gameRoom.IsStarted = false
+		gameRoom.EndGame()
+		endBroadcast := events.NewEndGameBroadcast(winner)
+		u.broadcastMessage(roomID, endBroadcast)
+	}
+
+	res = events.NewPlayCardResponse(success, player.Hand)
 	conn.WriteJSON(res)
 
 	nextPlayerIndex := gameRoom.NextPlayer(playerIndex)

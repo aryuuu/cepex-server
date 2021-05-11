@@ -57,6 +57,11 @@ type StartGameBroadcast struct {
 	StarterIndex int    `json:"starter_idx"`
 }
 
+type EndGameBroadcast struct {
+	EventType string `json:"event_type"`
+	WinnerID  string `json:"id_winner,omitempty"`
+}
+
 type InitialHandResponse struct {
 	EventType string        `json:"event_type"`
 	NewHand   []models.Card `json:"new_hand"`
@@ -65,6 +70,7 @@ type InitialHandResponse struct {
 type PlayCardResponse struct {
 	EventType string        `json:"event_type,omitempty"`
 	Success   bool          `json:"success"`
+	IsUpdate  bool          `json:"is_update"`
 	NewHand   []models.Card `json:"new_hand"`
 	// HandIndex int         `json:"hand_index,omitempty"`
 	// DrawnCard models.Card `json:"drawn_card,omitempty"`
@@ -92,6 +98,11 @@ type MessageBroadcast struct {
 type NotificationBroadcast struct {
 	EventType string `json:"event_type,omitempty"`
 	Message   string `json:"message,omitempty"`
+}
+
+type DeadPlayerBroadcast struct {
+	EventType    string `json:"event_type"`
+	DeadPlayerID string `json:"id_dead_player"`
 }
 
 func NewCreateRoomResponse(success bool, roomID string, host *models.Player) CreateRoomResponse {
@@ -188,6 +199,15 @@ func NewStartGameBroadcast(starterIndex int) StartGameBroadcast {
 	return result
 }
 
+func NewEndGameBroadcast(winnerID string) EndGameBroadcast {
+	result := EndGameBroadcast{
+		EventType: "end-game-broadcast",
+		WinnerID:  winnerID,
+	}
+
+	return result
+}
+
 func NewInitialHandResponse(hand []models.Card) InitialHandResponse {
 	result := InitialHandResponse{
 		EventType: "initial-hand",
@@ -202,6 +222,7 @@ func NewPlayCardResponse(success bool, newHand []models.Card) PlayCardResponse {
 		EventType: "play-card",
 		Success:   success,
 		NewHand:   newHand,
+		IsUpdate:  newHand != nil,
 	}
 
 	return result
@@ -223,6 +244,15 @@ func NewTurnBroadcast(playerID string) TurnBroadcast {
 	result := TurnBroadcast{
 		EventType: "turn-broadcast",
 		PlayerID:  playerID,
+	}
+
+	return result
+}
+
+func NewDeadPlayerBroadcast(playerID string) DeadPlayerBroadcast {
+	result := DeadPlayerBroadcast{
+		EventType:    "dead-player",
+		DeadPlayerID: playerID,
 	}
 
 	return result

@@ -2,7 +2,6 @@ package models
 
 import (
 	"errors"
-	"log"
 	"math/rand"
 	"time"
 
@@ -109,13 +108,25 @@ func (r *Room) StartGame() int {
 
 	for _, player := range r.Players {
 		player.IsAlive = true
-		player.Hand = r.PickCard(2)
+		player.Hand = append(player.Hand, r.PickCard(2)...)
 	}
 
 	starterIndex := rand.Intn(len(r.Players))
 	r.TurnID = r.Players[starterIndex].PlayerID
 
 	return starterIndex
+}
+
+func (r *Room) EndGame() {
+	r.Count = 0
+	r.IsStarted = false
+	r.IsClockwise = false
+	r.Deck = NewDeck()
+
+	for _, p := range r.Players {
+		p.IsAlive = false
+		p.Hand = []Card{}
+	}
 }
 
 func (r *Room) PickCard(n int) []Card {
@@ -221,7 +232,24 @@ func (r *Room) GetPlayerIndex(playerID string) int {
 	return playerIndex
 }
 
+func (r *Room) GetWinner() (winner string) {
+	survivor := []string{}
+
+	for _, p := range r.Players {
+		if p.IsAlive {
+			survivor = append(survivor, p.PlayerID)
+		}
+	}
+
+	if len(survivor) == 1 {
+		return survivor[0]
+	}
+
+	return
+}
+
 func (p *Player) PlayHand(index int) error {
+	// log.Println(p.Name, "'s hand ", p.Hand)
 	if index >= len(p.Hand) {
 		return errors.New("Card is unavailable")
 	}
@@ -236,6 +264,6 @@ func (p *Player) PlayHand(index int) error {
 }
 
 func (p *Player) AddHand(card []Card) {
-	log.Printf("player hand")
 	p.Hand = append(p.Hand, card...)
+	// log.Printf("%v hand %v", p.Name, p.Hand)
 }
