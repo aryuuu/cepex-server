@@ -1,6 +1,6 @@
 package events
 
-import "github.com/aryuuu/cepex-server/models"
+import "github.com/aryuuu/cepex-server/models/game"
 
 type GameRequest struct {
 	EventType  string `json:"event_type,omitempty"`
@@ -13,27 +13,27 @@ type GameRequest struct {
 }
 
 type GameResponse struct {
-	EventType string          `json:"event_type,omitempty"`
-	Players   []models.Player `json:"players,omitempty"`
+	EventType string        `json:"event_type,omitempty"`
+	Players   []game.Player `json:"players,omitempty"`
 }
 
 type CreateRoomResponse struct {
-	EventType string      `json:"event_type,omitempty"`
-	Success   bool        `json:"success,omitempty"`
-	NewRoom   models.Room `json:"room,omitempty"`
-	// Hand      []models.Card `json:"hand"`
+	EventType string    `json:"event_type,omitempty"`
+	Success   bool      `json:"success,omitempty"`
+	NewRoom   game.Room `json:"room,omitempty"`
+	// Hand      []game.Card `json:"hand"`
 }
 
 type JoinRoomResponse struct {
-	EventType string      `json:"event_type,omitempty"`
-	Success   bool        `json:"success"`
-	NewRoom   models.Room `json:"new_room,omitempty"`
-	// Hand      []models.Card `json:"hand"`
+	EventType string    `json:"event_type,omitempty"`
+	Success   bool      `json:"success"`
+	NewRoom   game.Room `json:"new_room,omitempty"`
+	// Hand      []game.Card `json:"hand"`
 }
 
 type JoinRoomBroadcast struct {
-	EventType string         `json:"event_type,omitempty"`
-	NewPlayer *models.Player `json:"new_player,omitempty"`
+	EventType string       `json:"event_type,omitempty"`
+	NewPlayer *game.Player `json:"new_player,omitempty"`
 }
 
 type LeaveRoomResponse struct {
@@ -63,25 +63,25 @@ type EndGameBroadcast struct {
 }
 
 type InitialHandResponse struct {
-	EventType string        `json:"event_type"`
-	NewHand   []models.Card `json:"new_hand"`
+	EventType string      `json:"event_type"`
+	NewHand   []game.Card `json:"new_hand"`
 }
 
 type PlayCardResponse struct {
-	EventType string        `json:"event_type,omitempty"`
-	Success   bool          `json:"success"`
-	IsUpdate  bool          `json:"is_update"`
-	NewHand   []models.Card `json:"new_hand"`
+	EventType string      `json:"event_type,omitempty"`
+	Success   bool        `json:"success"`
+	IsUpdate  bool        `json:"is_update"`
+	NewHand   []game.Card `json:"new_hand"`
 	// HandIndex int         `json:"hand_index,omitempty"`
-	// DrawnCard models.Card `json:"drawn_card,omitempty"`
+	// DrawnCard game.Card `json:"drawn_card,omitempty"`
 }
 
 type PlayCardBroadcast struct {
-	EventType       string      `json:"event_type,omitempty"`
-	Card            models.Card `json:"card"`
-	Count           int         `json:"count,omitempty"`
-	IsClockwise     bool        `json:"is_clockwise"`
-	NextPlayerIndex int         `json:"next_player_idx"`
+	EventType       string    `json:"event_type,omitempty"`
+	Card            game.Card `json:"card"`
+	Count           int       `json:"count,omitempty"`
+	IsClockwise     bool      `json:"is_clockwise"`
+	NextPlayerIndex int       `json:"next_player_idx"`
 }
 
 type TurnBroadcast struct {
@@ -105,13 +105,13 @@ type DeadPlayerBroadcast struct {
 	DeadPlayerID string `json:"id_dead_player"`
 }
 
-func NewCreateRoomResponse(success bool, roomID string, host *models.Player) CreateRoomResponse {
-	players := []*models.Player{host}
+func NewCreateRoomResponse(success bool, roomID string, host *game.Player) CreateRoomResponse {
+	players := []*game.Player{host}
 
 	result := CreateRoomResponse{
 		EventType: "create-room",
 		Success:   success,
-		NewRoom: models.Room{
+		NewRoom: game.Room{
 			RoomID:      roomID,
 			Capacity:    4,
 			HostID:      host.PlayerID,
@@ -125,7 +125,7 @@ func NewCreateRoomResponse(success bool, roomID string, host *models.Player) Cre
 	return result
 }
 
-func NewJoinRoomResponse(success bool, room *models.Room) JoinRoomResponse {
+func NewJoinRoomResponse(success bool, room *game.Room) JoinRoomResponse {
 	result := JoinRoomResponse{
 		EventType: "join-room",
 		Success:   success,
@@ -135,7 +135,7 @@ func NewJoinRoomResponse(success bool, room *models.Room) JoinRoomResponse {
 	return result
 }
 
-func NewJoinRoomBroadcast(player *models.Player) JoinRoomBroadcast {
+func NewJoinRoomBroadcast(player *game.Player) JoinRoomBroadcast {
 	result := JoinRoomBroadcast{
 		EventType: "join-room-broadcast",
 		NewPlayer: player,
@@ -208,7 +208,7 @@ func NewEndGameBroadcast(winnerID string) EndGameBroadcast {
 	return result
 }
 
-func NewInitialHandResponse(hand []models.Card) InitialHandResponse {
+func NewInitialHandResponse(hand []game.Card) InitialHandResponse {
 	result := InitialHandResponse{
 		EventType: "initial-hand",
 		NewHand:   hand,
@@ -217,7 +217,7 @@ func NewInitialHandResponse(hand []models.Card) InitialHandResponse {
 	return result
 }
 
-func NewPlayCardResponse(success bool, newHand []models.Card) PlayCardResponse {
+func NewPlayCardResponse(success bool, newHand []game.Card) PlayCardResponse {
 	result := PlayCardResponse{
 		EventType: "play-card",
 		Success:   success,
@@ -228,7 +228,7 @@ func NewPlayCardResponse(success bool, newHand []models.Card) PlayCardResponse {
 	return result
 }
 
-func NewPlayCardBroadcast(card models.Card, count int, isClockwise bool, nextPlayerIdx int) PlayCardBroadcast {
+func NewPlayCardBroadcast(card game.Card, count int, isClockwise bool, nextPlayerIdx int) PlayCardBroadcast {
 	result := PlayCardBroadcast{
 		EventType:       "play-card-broadcast",
 		Card:            card,

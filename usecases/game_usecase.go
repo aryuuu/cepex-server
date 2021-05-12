@@ -3,20 +3,20 @@ package usecases
 import (
 	"log"
 
-	"github.com/aryuuu/cepex-server/models"
 	"github.com/aryuuu/cepex-server/models/events"
+	gameModel "github.com/aryuuu/cepex-server/models/game"
 	"github.com/gorilla/websocket"
 )
 
 type gameUsecase struct {
 	Rooms     map[string]map[*websocket.Conn]string
-	GameRooms map[string]*models.Room
+	GameRooms map[string]*gameModel.Room
 }
 
-func NewGameUsecase() models.GameUsecase {
+func NewGameUsecase() gameModel.GameUsecase {
 	return &gameUsecase{
 		Rooms:     make(map[string]map[*websocket.Conn]string),
-		GameRooms: make(map[string]*models.Room),
+		GameRooms: make(map[string]*gameModel.Room),
 	}
 }
 
@@ -63,9 +63,9 @@ func (u *gameUsecase) createRoom(conn *websocket.Conn, roomID string, gameReques
 	_, ok := u.Rooms[roomID]
 
 	if ok {
-		conn.WriteJSON(events.NewCreateRoomResponse(false, roomID, &models.Player{}))
+		conn.WriteJSON(events.NewCreateRoomResponse(false, roomID, &gameModel.Player{}))
 	} else {
-		player := models.NewPlayer(gameRequest.ClientName, gameRequest.AvatarURL)
+		player := gameModel.NewPlayer(gameRequest.ClientName, gameRequest.AvatarURL)
 
 		u.createConnectionRoom(roomID, conn)
 		u.createGameRoom(roomID, player.PlayerID)
@@ -74,7 +74,7 @@ func (u *gameUsecase) createRoom(conn *websocket.Conn, roomID string, gameReques
 		// u.Rooms[roomID] = make(map[*websocket.Conn]string)
 		// u.Rooms[roomID][conn] = player.PlayerID
 
-		// gameRoom := models.NewRoom(roomID, player.PlayerID, 4)
+		// gameRoom := gameModel.NewRoom(roomID, player.PlayerID, 4)
 		// u.GameRooms[roomID] = gameRoom
 		// gameRoom.AddPlayer(player)
 
@@ -94,7 +94,7 @@ func (u *gameUsecase) joinRoom(conn *websocket.Conn, roomID string, gameRequest 
 	if ok {
 		log.Printf("found room %v", roomID)
 		gameRoom := u.GameRooms[roomID]
-		player := models.NewPlayer(gameRequest.ClientName, gameRequest.AvatarURL)
+		player := gameModel.NewPlayer(gameRequest.ClientName, gameRequest.AvatarURL)
 		u.registerPlayer(roomID, conn, player)
 
 		res := events.NewJoinRoomResponse(ok, gameRoom)
@@ -104,7 +104,7 @@ func (u *gameUsecase) joinRoom(conn *websocket.Conn, roomID string, gameRequest 
 		u.broadcastMessage(roomID, broadcast)
 	} else {
 		log.Printf("room %v does not exist", roomID)
-		res := events.NewJoinRoomResponse(ok, &models.Room{})
+		res := events.NewJoinRoomResponse(ok, &gameModel.Room{})
 		conn.WriteJSON(res)
 	}
 }
@@ -184,7 +184,6 @@ func (u *gameUsecase) playCard(conn *websocket.Conn, roomID string, gameRequest 
 		return
 	}
 
-	// log.Printf("players hand before playing: %v", gameRoom.Players[playerIndex].Hand)
 	for _, p := range gameRoom.Players {
 		log.Printf("%v's card %v", p.Name, p.Hand)
 	}
@@ -195,7 +194,7 @@ func (u *gameUsecase) playCard(conn *websocket.Conn, roomID string, gameRequest 
 	var res events.PlayCardResponse
 
 	success := true
-	if err := gameRoom.PlayCard(playerID, gameRequest.HandIndex, gameRequest.IsAdd); err != nil {
+	if err := gameRoom.PlayCard(playerID, gameRequest.HandIndex, gameRequest.IsAdd, gameRequest.PlayerID); err != nil {
 		success = false
 	}
 
@@ -219,7 +218,13 @@ func (u *gameUsecase) playCard(conn *websocket.Conn, roomID string, gameRequest 
 	res = events.NewPlayCardResponse(success, player.Hand)
 	conn.WriteJSON(res)
 
-	nextPlayerIndex := gameRoom.NextPlayer(playerIndex)
+	var nextPlayerIndex int
+	if gameRoom.TurnID == playerID {
+		nextPlayerIndex = gameRoom.NextPlayer(playerIndex)
+	} else {
+		nextPlayerIndex = gameRoom.GetPlayerIndex(gameRoom.TurnID)
+	}
+
 	broadcast := events.NewPlayCardBroadcast(playedCard, gameRoom.Count, gameRoom.IsClockwise, nextPlayerIndex)
 	u.broadcastMessage(roomID, broadcast)
 }
@@ -243,11 +248,11 @@ func (u *gameUsecase) createConnectionRoom(roomID string, conn *websocket.Conn) 
 }
 
 func (u *gameUsecase) createGameRoom(roomID string, hostID string) {
-	gameRoom := models.NewRoom(roomID, hostID, 4)
+	gameRoom := gameModel.NewRoom(roomID, hostID, 4)
 	u.GameRooms[roomID] = gameRoom
 }
 
-func (u *gameUsecase) registerPlayer(roomID string, conn *websocket.Conn, player *models.Player) {
+func (u *gameUsecase) registerPlayer(roomID string, conn *websocket.Conn, player *gameModel.Player) {
 	u.Rooms[roomID][conn] = player.PlayerID
 	u.GameRooms[roomID].AddPlayer(player)
 }

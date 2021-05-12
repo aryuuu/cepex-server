@@ -1,4 +1,4 @@
-package models
+package game
 
 import (
 	"errors"
@@ -6,31 +6,11 @@ import (
 	"time"
 
 	"github.com/aryuuu/cepex-server/utils/common"
-	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
 type GameUsecase interface {
 	Connect(conn *websocket.Conn, roomID string)
-}
-
-// Card :nodoc:
-type Card struct {
-	// 0 = diamond
-	// 1 = club
-	// 2 = heart
-	// 3 = spade
-	Pattern int `json:"pattern"`
-	Rank    int `json:"rank"`
-}
-
-// Player :nodoc:
-type Player struct {
-	PlayerID  string `json:"id_player,omitempty"`
-	Name      string `json:"name,omitempty"`
-	AvatarURL string `json:"avatar_url"`
-	IsAlive   bool   `json:"is_alive"`
-	Hand      []Card `json:"-"`
 }
 
 // Room :nodoc:
@@ -47,25 +27,6 @@ type Room struct {
 	Count       int                `json:"count"`
 }
 
-// type SocketServer struct {
-// 	clients map[uint32]*SocketClient
-// }
-
-// type SocketClient struct {
-// 	ID   uint32
-// 	conn *websocket.Conn
-// }
-
-func NewPlayer(name, avatarUrl string) *Player {
-	return &Player{
-		Name:      name,
-		AvatarURL: avatarUrl,
-		PlayerID:  uuid.NewString(),
-		IsAlive:   false,
-		Hand:      []Card{},
-	}
-}
-
 func NewRoom(id, host string, capacity int) *Room {
 	return &Room{
 		RoomID:      id,
@@ -78,29 +39,6 @@ func NewRoom(id, host string, capacity int) *Room {
 		Deck:        NewDeck(),
 		Count:       0,
 	}
-}
-
-func NewDeck() []Card {
-	totalCard := 52
-	result := make([]Card, totalCard)
-
-	for pattern := 0; pattern < 4; pattern++ {
-		for rank := 1; rank < 14; rank++ {
-			result[(13*pattern)+rank-1] = Card{
-				Rank:    rank,
-				Pattern: pattern,
-			}
-		}
-	}
-
-	rand.Seed(time.Now().UnixNano())
-	rand.Shuffle(len(result), func(i, j int) { result[i], result[j] = result[j], result[i] })
-
-	return result
-}
-
-func (c Card) IsSpecial() bool {
-	return c.Rank == 1 || c.Rank == 4 || c.Rank == 7 || c.Rank == 11 || c.Rank == 12 || c.Rank == 13
 }
 
 func (r *Room) StartGame() int {
@@ -151,7 +89,7 @@ func (r *Room) PutCard(cards []Card) {
 	}
 }
 
-func (r *Room) PlayCard(playerID string, handIndex int, isAdd bool) error {
+func (r *Room) PlayCard(playerID string, handIndex int, isAdd bool, targetID string) error {
 	player := r.PlayerMap[playerID]
 	card := player.Hand[handIndex]
 
@@ -177,7 +115,10 @@ func (r *Room) PlayCard(playerID string, handIndex int, isAdd bool) error {
 		case 4:
 			r.IsClockwise = !r.IsClockwise
 		case 7:
-			break
+			if target := r.PlayerMap[targetID]; target != nil && !target.IsAlive {
+				return errors.New("target is dead")
+			}
+			r.TurnID = targetID
 		case 11:
 			r.Count += factor * 10
 		case 12:
@@ -260,24 +201,4 @@ func (r *Room) GetWinner() (winner string) {
 	}
 
 	return
-}
-
-func (p *Player) PlayHand(index int) error {
-	// log.Println(p.Name, "'s hand ", p.Hand)
-	if index >= len(p.Hand) {
-		return errors.New("Card is unavailable")
-	}
-
-	if index == 0 {
-		p.Hand = p.Hand[1:]
-	} else {
-		p.Hand = p.Hand[:1]
-	}
-
-	return nil
-}
-
-func (p *Player) AddHand(card []Card) {
-	p.Hand = append(p.Hand, card...)
-	// log.Printf("%v hand %v", p.Name, p.Hand)
 }
