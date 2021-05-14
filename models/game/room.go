@@ -11,6 +11,7 @@ import (
 
 type GameUsecase interface {
 	Connect(conn *websocket.Conn, roomID string)
+	RunSwitch()
 }
 
 // Room :nodoc:
@@ -91,9 +92,8 @@ func (r *Room) PutCard(cards []Card) {
 
 func (r *Room) PlayCard(playerID string, handIndex int, isAdd bool, targetID string) error {
 	player := r.PlayerMap[playerID]
-	card := player.Hand[handIndex]
-
-	if err := player.PlayHand(handIndex); err != nil {
+	card, err := player.PlayHand(handIndex)
+	if err != nil {
 		return err
 	}
 
@@ -111,6 +111,9 @@ func (r *Room) PlayCard(playerID string, handIndex int, isAdd bool, targetID str
 	} else {
 		switch card.Rank {
 		case 1:
+			if r.Count+(factor*1) > 100 || r.Count+(factor*1) < 0 {
+				return errors.New("invalid move")
+			}
 			r.Count += factor * 1
 		case 4:
 			r.IsClockwise = !r.IsClockwise
@@ -120,8 +123,14 @@ func (r *Room) PlayCard(playerID string, handIndex int, isAdd bool, targetID str
 			}
 			r.TurnID = targetID
 		case 11:
+			if r.Count+(factor*10) > 100 || r.Count+(factor*10) < 0 {
+				return errors.New("invalid move")
+			}
 			r.Count += factor * 10
 		case 12:
+			if r.Count+(factor*20) > 100 || r.Count+(factor*20) < 0 {
+				return errors.New("invalid move")
+			}
 			r.Count += factor * 20
 		case 13:
 			r.Count = 100
@@ -163,6 +172,18 @@ func (r *Room) NextPlayer(playerIndex int) int {
 	r.TurnID = r.Players[nextPlayerIndex].PlayerID
 
 	return nextPlayerIndex
+}
+
+func (r *Room) NextHost() (newHostID string) {
+	for _, p := range r.Players {
+		if p.PlayerID != r.HostID {
+			r.HostID = p.PlayerID
+			newHostID = p.PlayerID
+			return
+		}
+	}
+
+	return
 }
 
 func (r *Room) AddPlayer(player *Player) {

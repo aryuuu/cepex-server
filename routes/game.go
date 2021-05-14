@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/aryuuu/cepex-server/models"
+	gameModel "github.com/aryuuu/cepex-server/models/game"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -14,17 +14,19 @@ import (
 type GameRouter struct {
 	Upgrader    websocket.Upgrader
 	Rooms       map[string]map[*websocket.Conn]string
-	GameRooms   map[string]*models.Room
-	GameUsecase models.GameUsecase
+	GameRooms   map[string]*gameModel.Room
+	GameUsecase gameModel.GameUsecase
 }
 
-func InitGameRouter(r *mux.Router, upgrader websocket.Upgrader, guc models.GameUsecase) {
+func InitGameRouter(r *mux.Router, upgrader websocket.Upgrader, guc gameModel.GameUsecase) {
 	gameRouter := &GameRouter{
 		Upgrader:    upgrader,
 		Rooms:       make(map[string]map[*websocket.Conn]string),
-		GameRooms:   make(map[string]*models.Room),
+		GameRooms:   make(map[string]*gameModel.Room),
 		GameUsecase: guc,
 	}
+
+	go gameRouter.GameUsecase.RunSwitch()
 
 	r.HandleFunc("/create", gameRouter.HandleCreateRoom)
 	r.HandleFunc("/{roomID}", gameRouter.HandleGameEvent)

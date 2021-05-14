@@ -1,6 +1,16 @@
 package events
 
-import "github.com/aryuuu/cepex-server/models/game"
+import (
+	"github.com/aryuuu/cepex-server/models/game"
+	"github.com/gorilla/websocket"
+)
+
+type SocketEvent struct {
+	EventType string          `json:"event_type"`
+	RoomID    string          `json:"id_room"`
+	Conn      *websocket.Conn `json:"conn"`
+	Message   interface{}     `json:"message"`
+}
 
 type GameRequest struct {
 	EventType  string `json:"event_type,omitempty"`
@@ -10,6 +20,7 @@ type GameRequest struct {
 	HandIndex  int    `json:"hand_index,omitempty"`
 	IsAdd      bool   `json:"is_add,omitempty"`
 	PlayerID   string `json:"id_player,omitempty"`
+	IsDiscard  bool   `json:"is_discard"`
 }
 
 type GameResponse struct {
@@ -21,6 +32,7 @@ type CreateRoomResponse struct {
 	EventType string    `json:"event_type,omitempty"`
 	Success   bool      `json:"success,omitempty"`
 	NewRoom   game.Room `json:"room,omitempty"`
+	Detail    string    `json:"detail,omitempty"`
 	// Hand      []game.Card `json:"hand"`
 }
 
@@ -28,6 +40,7 @@ type JoinRoomResponse struct {
 	EventType string    `json:"event_type,omitempty"`
 	Success   bool      `json:"success"`
 	NewRoom   game.Room `json:"new_room,omitempty"`
+	Detail    string    `json:"detail,omitempty"`
 	// Hand      []game.Card `json:"hand"`
 }
 
@@ -72,6 +85,7 @@ type PlayCardResponse struct {
 	Success   bool        `json:"success"`
 	IsUpdate  bool        `json:"is_update"`
 	NewHand   []game.Card `json:"new_hand"`
+	Message   string      `json:"message,omitempty"`
 	// HandIndex int         `json:"hand_index,omitempty"`
 	// DrawnCard game.Card `json:"drawn_card,omitempty"`
 }
@@ -105,7 +119,37 @@ type DeadPlayerBroadcast struct {
 	DeadPlayerID string `json:"id_dead_player"`
 }
 
-func NewCreateRoomResponse(success bool, roomID string, host *game.Player) CreateRoomResponse {
+type ChangeHostBroadcast struct {
+	EventType string `json:"event_type"`
+	NewHostID string `json:"id_new_host"`
+}
+
+func NewUnicastEvent(roomID string, conn *websocket.Conn, message interface{}) SocketEvent {
+	return SocketEvent{
+		EventType: "unicast",
+		RoomID:    roomID,
+		Conn:      conn,
+		Message:   message,
+	}
+}
+
+func NewBroadcastEvent(roomID string, message interface{}) SocketEvent {
+	return SocketEvent{
+		EventType: "broadcast",
+		RoomID:    roomID,
+		Message:   message,
+	}
+}
+
+func NewSocketEvent(eventType, roomID string, conn *websocket.Conn, message interface{}) SocketEvent {
+	return SocketEvent{
+		EventType: eventType,
+		RoomID:    roomID,
+		Message:   message,
+	}
+}
+
+func NewCreateRoomResponse(success bool, roomID string, host *game.Player, detail string) CreateRoomResponse {
 	players := []*game.Player{host}
 
 	result := CreateRoomResponse{
@@ -120,16 +164,18 @@ func NewCreateRoomResponse(success bool, roomID string, host *game.Player) Creat
 			Players:     players,
 			Count:       0,
 		},
+		Detail: detail,
 	}
 
 	return result
 }
 
-func NewJoinRoomResponse(success bool, room *game.Room) JoinRoomResponse {
+func NewJoinRoomResponse(success bool, room *game.Room, detail string) JoinRoomResponse {
 	result := JoinRoomResponse{
 		EventType: "join-room",
 		Success:   success,
 		NewRoom:   *room,
+		Detail:    detail,
 	}
 
 	return result
@@ -217,12 +263,13 @@ func NewInitialHandResponse(hand []game.Card) InitialHandResponse {
 	return result
 }
 
-func NewPlayCardResponse(success bool, newHand []game.Card) PlayCardResponse {
+func NewPlayCardResponse(success bool, newHand []game.Card, message string) PlayCardResponse {
 	result := PlayCardResponse{
 		EventType: "play-card",
 		Success:   success,
 		NewHand:   newHand,
 		IsUpdate:  newHand != nil,
+		Message:   message,
 	}
 
 	return result
@@ -256,4 +303,11 @@ func NewDeadPlayerBroadcast(playerID string) DeadPlayerBroadcast {
 	}
 
 	return result
+}
+
+func NewChangeHostBroadcast(hostID string) ChangeHostBroadcast {
+	return ChangeHostBroadcast{
+		EventType: "change-host",
+		NewHostID: hostID,
+	}
 }
