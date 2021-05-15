@@ -47,3 +47,11 @@ func (p *Player) AddHand(card []Card) {
 	p.Hand = append(p.Hand, card...)
 	// log.Printf("%v hand %v", p.Name, p.Hand)
 }
+
+func (p *Player) InsertHand(card Card, index int) {
+	if index == 0 {
+		p.Hand = append([]Card{card}, p.Hand...)
+	} else {
+		p.Hand = append(p.Hand, card)
+	}
+}

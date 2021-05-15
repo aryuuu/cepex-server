@@ -46,8 +46,8 @@ func (u *gameUsecase) Connect(conn *websocket.Conn, roomID string) {
 				log.Print("IsUnexpectedCloseError()", err)
 			} else {
 				log.Printf("expected close error: %v", err)
-				u.kickPlayer(conn, roomID, gameRequest)
 			}
+			u.kickPlayer(conn, roomID, gameRequest)
 			return
 		}
 		log.Printf("gameRequest: %v", gameRequest)
@@ -143,7 +143,6 @@ func (u *gameUsecase) kickPlayer(conn *websocket.Conn, roomID string, gameReques
 	if ok {
 		broadcast := events.NewLeaveRoomBroadcast(playerID)
 		u.pushMessage(true, roomID, conn, broadcast)
-		// u.broadcastMessage(roomID, broadcast)
 	}
 
 	// appoint new host if necessary
@@ -177,8 +176,6 @@ func (u *gameUsecase) startGame(conn *websocket.Conn, roomID string) {
 
 		u.pushMessage(true, roomID, conn, res)
 		u.pushMessage(true, roomID, conn, notification)
-		// u.broadcastMessage(roomID, res)
-		// u.broadcastMessage(roomID, notification)
 	}
 }
 
@@ -187,14 +184,14 @@ func (u *gameUsecase) playCard(conn *websocket.Conn, roomID string, gameRequest 
 	playerID := u.Rooms[roomID][conn].ID
 	if !gameRoom.IsStarted {
 		log.Printf("game is not started")
-		res := events.NewPlayCardResponse(false, nil, "Game is not started")
+		res := events.NewPlayCardResponse(false, nil, 3, "Game is not started")
 		u.pushMessage(false, roomID, conn, res)
 		return
 	}
 
 	if gameRoom.TurnID != playerID {
 		log.Printf("its not your turn yet")
-		res := events.NewPlayCardResponse(false, nil, "Please wait for your turn")
+		res := events.NewPlayCardResponse(false, nil, 3, "Please wait for your turn")
 		u.pushMessage(false, roomID, conn, res)
 		return
 	}
@@ -205,7 +202,7 @@ func (u *gameUsecase) playCard(conn *websocket.Conn, roomID string, gameRequest 
 
 	if !player.IsAlive {
 		log.Printf("this player is dead")
-		res := events.NewPlayCardResponse(false, nil, "You are already dead")
+		res := events.NewPlayCardResponse(false, nil, 3, "You are already dead")
 		u.pushMessage(false, roomID, conn, res)
 		return
 	}
@@ -222,6 +219,11 @@ func (u *gameUsecase) playCard(conn *websocket.Conn, roomID string, gameRequest 
 	success := true
 	if err := gameRoom.PlayCard(playerID, gameRequest.HandIndex, gameRequest.IsAdd, gameRequest.PlayerID); err != nil {
 		success = false
+
+		if !gameRequest.IsDiscard {
+			// player.AddHand([]gameModel.Card{playedCard})
+			player.InsertHand(playedCard, gameRequest.HandIndex)
+		}
 	}
 
 	if len(player.Hand) == 0 {
@@ -235,26 +237,40 @@ func (u *gameUsecase) playCard(conn *websocket.Conn, roomID string, gameRequest 
 	}
 
 	if winner := gameRoom.GetWinner(); winner != "" {
-		// gameRoom.IsStarted = false
 		gameRoom.EndGame()
 		endBroadcast := events.NewEndGameBroadcast(winner)
 		u.pushMessage(true, roomID, conn, endBroadcast)
+		// return
 	}
 
 	message := ""
-	if !success {
+	status := 0
+	if !success && !gameRequest.IsDiscard {
+		status = 1
+		res = events.NewPlayCardResponse(false, player.Hand, status, "Try discarding hand")
+		res.HandIndex = gameRequest.HandIndex
+		u.pushMessage(false, roomID, conn, res)
+		return
+	}
+
+	if !success && gameRequest.IsDiscard {
 		message = "Hand discarded"
 	}
-	res = events.NewPlayCardResponse(success, player.Hand, message)
+	res = events.NewPlayCardResponse(success, player.Hand, status, message)
 	u.pushMessage(false, roomID, conn, res)
 
 	var nextPlayerIndex int
-	if gameRoom.TurnID == playerID {
-		nextPlayerIndex = gameRoom.NextPlayer(playerIndex)
-	} else {
-		nextPlayerIndex = gameRoom.GetPlayerIndex(gameRoom.TurnID)
+	if gameRoom.IsStarted {
+		if gameRoom.TurnID == playerID {
+			nextPlayerIndex = gameRoom.NextPlayer(playerIndex)
+		} else {
+			nextPlayerIndex = gameRoom.GetPlayerIndex(gameRoom.TurnID)
+		}
 	}
 
+	if !success {
+		playedCard = gameModel.Card{}
+	}
 	broadcast := events.NewPlayCardBroadcast(playedCard, gameRoom.Count, gameRoom.IsClockwise, nextPlayerIndex)
 	u.pushMessage(true, roomID, conn, broadcast)
 }

@@ -86,8 +86,13 @@ type PlayCardResponse struct {
 	IsUpdate  bool        `json:"is_update"`
 	NewHand   []game.Card `json:"new_hand"`
 	Message   string      `json:"message,omitempty"`
-	// HandIndex int         `json:"hand_index,omitempty"`
-	// DrawnCard game.Card `json:"drawn_card,omitempty"`
+	Status    int         `json:"status"`
+	HandIndex int         `json:"hand_index"`
+	// status code list
+	// 0: success no prob
+	// 1: unplayable card
+	// 2: discard success
+	// 3: other error
 }
 
 type PlayCardBroadcast struct {
@@ -263,12 +268,13 @@ func NewInitialHandResponse(hand []game.Card) InitialHandResponse {
 	return result
 }
 
-func NewPlayCardResponse(success bool, newHand []game.Card, message string) PlayCardResponse {
+func NewPlayCardResponse(success bool, newHand []game.Card, status int, message string) PlayCardResponse {
 	result := PlayCardResponse{
 		EventType: "play-card",
 		Success:   success,
 		NewHand:   newHand,
 		IsUpdate:  newHand != nil,
+		Status:    status,
 		Message:   message,
 	}
 
