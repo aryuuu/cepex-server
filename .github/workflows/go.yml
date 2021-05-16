@@ -36,9 +36,6 @@ jobs:
           if ! systemctl --user list-units | grep -q "cepex"; then
             [[ ! -d $HOME/.config/systemd/user/ ]] && mkdir -p $HOME/.config/systemd/user/
             cp ./.systemd/cepex.service $HOME/.config/systemd/user/cepex.service
-          else
-            [[ ! -d $HOME/.config/systemd/user/cepex.service.d/ ]] && mkdir -p $HOME/.config/systemd/user/cepex.service.d/
-            cp ./.systemd/cepex.service $HOME/.config/systemd/user/cepex.service.d/override.conf
           fi
     - name: Run service
       env:
@@ -49,4 +46,6 @@ jobs:
         S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
         S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
         SERVICE_NAME: ${{ secrets.SERVICE_NAME }}
-      run: XDG_RUNTIME_DIR=/run/user/$UID systemctl --user enable cepex.service --now
+      run: |
+        systemctl --user import-environment CAPACITY PORT S3_ACCESS_KEY S3_BUCKET S3_ENDPOINT S3_SECRET_KEY SERVICE_NAME
+        XDG_RUNTIME_DIR=/run/user/$UID systemctl --user enable cepex.service --now
