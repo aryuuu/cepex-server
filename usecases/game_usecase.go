@@ -151,8 +151,6 @@ func (u *gameUsecase) kickPlayer(conn *websocket.Conn, roomID string, gameReques
 		changeHostBroadcast := events.NewChangeHostBroadcast(newHostID)
 		u.pushMessage(true, roomID, conn, changeHostBroadcast)
 	}
-
-	// u.unregisterPlayer(roomID, conn, playerID)
 }
 
 func (u *gameUsecase) startGame(conn *websocket.Conn, roomID string) {
@@ -221,7 +219,6 @@ func (u *gameUsecase) playCard(conn *websocket.Conn, roomID string, gameRequest 
 		success = false
 
 		if !gameRequest.IsDiscard {
-			// player.AddHand([]gameModel.Card{playedCard})
 			player.InsertHand(playedCard, gameRequest.HandIndex)
 		}
 	}
@@ -240,7 +237,6 @@ func (u *gameUsecase) playCard(conn *websocket.Conn, roomID string, gameRequest 
 		gameRoom.EndGame()
 		endBroadcast := events.NewEndGameBroadcast(winner)
 		u.pushMessage(true, roomID, conn, endBroadcast)
-		// return
 	}
 
 	message := ""
@@ -285,7 +281,6 @@ func (u *gameUsecase) broadcastChat(conn *websocket.Conn, roomID string, gameReq
 
 		log.Printf("player %s send chat", playerName)
 		broadcast := events.NewMessageBroadcast(gameRequest.Message, playerName)
-		// u.broadcastMessage(roomID, broadcast)
 		u.pushMessage(true, roomID, conn, broadcast)
 	}
 }
@@ -300,7 +295,6 @@ func (u *gameUsecase) createGameRoom(roomID string, hostID string) {
 }
 
 func (u *gameUsecase) registerPlayer(roomID string, conn *websocket.Conn, player *gameModel.Player) {
-	// u.Rooms[roomID][conn] = player.PlayerID
 	u.Rooms[roomID][conn] = NewConnection(player.PlayerID)
 	u.GameRooms[roomID].AddPlayer(player)
 	go u.writePump(conn, roomID)
@@ -327,12 +321,6 @@ func (u *gameUsecase) unregisterPlayer(roomID string, conn *websocket.Conn, play
 	}
 }
 
-// func (u *gameUsecase) broadcastMessage(roomID string, message interface{}) {
-// 	room := u.Rooms[roomID]
-// 	for connection := range room {
-// 		connection.WriteJSON(message)
-// 	}
-// }
 func (u *gameUsecase) writePump(conn *websocket.Conn, roomID string) {
 	c := u.Rooms[roomID][conn]
 
