@@ -25,7 +25,12 @@ jobs:
 
     - name: Test
       run: go test -v ./...
-      
+    
+    - name: Stop service
+      run: |
+        if systemctl --user list-units | grep -q "cepex"; then
+          XDG_RUNTIME_DIR=/run/user/$UID systemctl --user disable cepex.service --now
+        fi
     - name: Setup binary
       run: |
         [[ ! -d $HOME/cepex-server/ ]] && mkdir $HOME/cepex-server
