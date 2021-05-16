@@ -6,6 +6,14 @@ Type=simple
 Restart=always
 RestartSec=5s
 ExecStart=%h/cepex-server/app
+Environment=PORT=xPORTx
+Environment=SERVICE_NAME=xSERVICE_NAMEx
+Environment=CAPACITY=xCAPACITYx
+Environment=S3_ACCESS_KEY=xS3_ACCESS_KEYx
+Environment=S3_BUCKET=xS3_BUCKETx
+Environment=S3_ENDPOINT=xS3_ENDPOINTx
+Environment=S3_SECRET_KEY=xS3_SECRET_KEYx
+
 
 [Install]
 WantedBy=default.target

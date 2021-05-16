@@ -26,9 +26,7 @@ func NewPlayer(name, avatarUrl string) *Player {
 }
 
 func (p *Player) PlayHand(index int) (card Card, err error) {
-	// log.Println(p.Name, "'s hand ", p.Hand)
 	if index >= len(p.Hand) {
-		// return nil, errors.New("Card is unavailable")
 		err = errors.New("card is unavailable")
 		return
 	}
