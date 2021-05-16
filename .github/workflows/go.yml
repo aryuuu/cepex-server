@@ -26,7 +26,7 @@ jobs:
       
     - name: Setup binary
       run: |
-        [[ -d $HOME/cepex-server/ ]] && mkdir $HOME/cepex-server
+        [[ ! -d $HOME/cepex-server/ ]] && mkdir $HOME/cepex-server
         cp ./bin/app $HOME/cepex-server/
     
     - name: Setup unit file
