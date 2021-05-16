@@ -33,10 +33,10 @@ jobs:
     
     - name: Setup unit file
       run: |
-          if ! systemctl --user list-units | grep -q "cepex"; then
-            [[ ! -d $HOME/.config/systemd/user/ ]] && mkdir -p $HOME/.config/systemd/user/
-            cp ./.systemd/cepex.service $HOME/.config/systemd/user/cepex.service
-          fi
+        if ! systemctl --user list-units | grep -q "cepex"; then
+          [[ ! -d $HOME/.config/systemd/user/ ]] && mkdir -p $HOME/.config/systemd/user/
+          cp ./.systemd/cepex.service $HOME/.config/systemd/user/cepex.service
+        fi
     - name: Run service
       env:
         CAPACITY: ${{ secrets.CAPACITY }}
