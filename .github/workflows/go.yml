@@ -50,11 +50,11 @@ jobs:
         S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
         S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
       run: |
-        sed -i "s/xPORTx/$PORT" $HOME/.config/systemd/user/cepex.service
-        sed -i "s/xSERVICE_NAMEx/$SERVICE_NAME" $HOME/.config/systemd/user/cepex.service
-        sed -i "s/xCAPACITYx/$CAPACITY" $HOME/.config/systemd/user/cepex.service
-        sed -i "s/xS3_ACCESS_KEYx/$S3_ACCESS_KEY" $HOME/.config/systemd/user/cepex.service
-        sed -i "s/xS3_BUCKETx/$S3_BUCKET" $HOME/.config/systemd/user/cepex.service
-        sed -i "s/xS3_ENDPOINTx/$S3_ENDPOINT" $HOME/.config/systemd/user/cepex.service
-        sed -i "s/xS3_SECRET_KEYx/$S3_SECRET_KEY" $HOME/.config/systemd/user/cepex.service
+        sed -i "s/xPORTx/$PORT/" $HOME/.config/systemd/user/cepex.service
+        sed -i "s/xSERVICE_NAMEx/$SERVICE_NAME/" $HOME/.config/systemd/user/cepex.service
+        sed -i "s/xCAPACITYx/$CAPACITY/" $HOME/.config/systemd/user/cepex.service
+        sed -i "s/xS3_ACCESS_KEYx/$S3_ACCESS_KEY/" $HOME/.config/systemd/user/cepex.service
+        sed -i "s/xS3_BUCKETx/$S3_BUCKET/" $HOME/.config/systemd/user/cepex.service
+        sed -i "s/xS3_ENDPOINTx/$S3_ENDPOINT/" $HOME/.config/systemd/user/cepex.service
+        sed -i "s/xS3_SECRET_KEYx/$S3_SECRET_KEY/" $HOME/.config/systemd/user/cepex.service
         XDG_RUNTIME_DIR=/run/user/$UID systemctl --user enable cepex.service --now
