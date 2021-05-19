@@ -42,12 +42,12 @@ func (u *gameUsecase) Connect(conn *websocket.Conn, roomID string) {
 
 		if err != nil {
 			log.Print(err)
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure) {
 				log.Print("IsUnexpectedCloseError()", err)
+				u.kickPlayer(conn, roomID, gameRequest)
 			} else {
 				log.Printf("expected close error: %v", err)
 			}
-			u.kickPlayer(conn, roomID, gameRequest)
 			return
 		}
 		log.Printf("gameRequest: %v", gameRequest)
@@ -130,7 +130,10 @@ func (u *gameUsecase) kickPlayer(conn *websocket.Conn, roomID string, gameReques
 	var playerID string
 
 	if gameRequest.PlayerID == "" {
-		playerID = u.Rooms[roomID][conn].ID
+		player := u.Rooms[roomID][conn]
+		if player != nil {
+			playerID = u.Rooms[roomID][conn].ID
+		}
 	} else {
 		playerID = gameRequest.PlayerID
 	}
@@ -335,6 +338,7 @@ func (u *gameUsecase) writePump(conn *websocket.Conn, roomID string) {
 
 		if _, ok := message.(events.LeaveRoomResponse); ok {
 			u.unregisterPlayer(roomID, conn, c.ID)
+			return
 		}
 	}
 }
