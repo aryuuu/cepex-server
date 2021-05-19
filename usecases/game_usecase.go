@@ -167,6 +167,11 @@ func (u *gameUsecase) startGame(conn *websocket.Conn, roomID string) {
 		// conn.WriteJSON(res)
 
 	} else {
+		if len(gameRoom.Players) < 2 {
+			res := events.NewStartGameResponse(false)
+			u.pushMessage(false, roomID, conn, res)
+			return
+		}
 		starterIndex := gameRoom.StartGame()
 
 		u.dealCard(roomID)
