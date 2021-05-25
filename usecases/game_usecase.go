@@ -369,10 +369,19 @@ func (u *gameUsecase) dealCard(roomID string) {
 func (u *gameUsecase) RunSwitch() {
 	for {
 		event := <-u.SwitchQueue
+		conRoom := u.Rooms[event.RoomID]
+		if conRoom == nil {
+			continue
+		}
+
 		if event.EventType == "unicast" {
-			u.Rooms[event.RoomID][event.Conn].Queue <- event.Message
+			pConn := conRoom[event.Conn]
+			if pConn == nil {
+				continue
+			}
+			pConn.Queue <- event.Message
 		} else {
-			for _, con := range u.Rooms[event.RoomID] {
+			for _, con := range conRoom {
 				con.Queue <- event.Message
 			}
 		}
