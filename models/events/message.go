@@ -129,6 +129,17 @@ type ChangeHostBroadcast struct {
 	NewHostID string `json:"id_new_host"`
 }
 
+type VoteKickPlayerResponse struct {
+	EventType string `json:"event_type"`
+	Success   bool   `json:"success"`
+}
+
+type VoteKickPlayerBroadcast struct {
+	EventType  string `json:"event_type"`
+	TargetID   string `json:"id_target"`
+	IssuerName string `json:"issuer_name"`
+}
+
 func NewUnicastEvent(roomID string, conn *websocket.Conn, message interface{}) SocketEvent {
 	return SocketEvent{
 		EventType: "unicast",
@@ -315,5 +326,20 @@ func NewChangeHostBroadcast(hostID string) ChangeHostBroadcast {
 	return ChangeHostBroadcast{
 		EventType: "change-host",
 		NewHostID: hostID,
+	}
+}
+
+func NewVoteKickPlayerResponse(success bool) VoteKickPlayerResponse {
+	return VoteKickPlayerResponse{
+		EventType: "vote-kick",
+		Success:   success,
+	}
+}
+
+func NewVoteKickPlayerBroadcast(targetID, issuerName string) VoteKickPlayerBroadcast {
+	return VoteKickPlayerBroadcast{
+		EventType:  "vote-kick-broadcast",
+		TargetID:   targetID,
+		IssuerName: issuerName,
 	}
 }

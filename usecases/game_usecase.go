@@ -61,6 +61,8 @@ func (u *gameUsecase) Connect(conn *websocket.Conn, roomID string) {
 			u.kickPlayer(conn, roomID, gameRequest)
 		case "kick-player":
 			u.kickPlayer(conn, roomID, gameRequest)
+		case "vote-kick-player":
+			u.voteKickPlayer(conn, roomID, gameRequest)
 		case "start-game":
 			u.startGame(conn, roomID)
 		case "play-card":
@@ -133,6 +135,28 @@ func (u *gameUsecase) kickPlayer(conn *websocket.Conn, roomID string, gameReques
 		}
 	} else {
 		playerID = gameRequest.PlayerID
+		room := u.GameRooms[roomID]
+		if room == nil {
+			res := events.NewVoteKickPlayerResponse(false)
+			u.pushMessage(false, roomID, conn, res)
+			return
+		}
+
+		_, ok := room.PlayerMap[playerID]
+		if !ok {
+			res := events.NewVoteKickPlayerResponse(false)
+			u.pushMessage(false, roomID, conn, res)
+			return
+		}
+
+		res := events.NewVoteKickPlayerResponse(true)
+		u.pushMessage(false, roomID, conn, res)
+
+		u.GameRooms[roomID].VoteBallot[playerID] = 0
+		issuerID := u.Rooms[roomID][conn].ID
+		voteKickBroadcast := events.NewVoteKickPlayerBroadcast(playerID, u.GameRooms[roomID].PlayerMap[issuerID].Name)
+		u.pushMessage(true, roomID, conn, voteKickBroadcast)
+		return
 	}
 
 	_, ok := u.Rooms[roomID]
@@ -163,6 +187,62 @@ func (u *gameUsecase) kickPlayer(conn *websocket.Conn, roomID string, gameReques
 		nextTurnIdx := gameRoom.NextPlayer(playerIndex)
 		newPlayerBroadcast := events.NewPlayCardBroadcast(gameModel.Card{}, gameRoom.Count, gameRoom.IsClockwise, nextTurnIdx)
 		u.pushMessage(true, roomID, conn, newPlayerBroadcast)
+	}
+}
+
+func (u *gameUsecase) voteKickPlayer(conn *websocket.Conn, roomID string, gameRequest events.GameRequest) {
+	log.Printf("Client is voting on room %v", roomID)
+	gameRoom := u.GameRooms[roomID]
+	// playerID := u.Rooms[roomID][conn].ID
+
+	_, ok := gameRoom.VoteBallot[gameRequest.PlayerID]
+	if !ok {
+		return
+	}
+
+	if gameRequest.IsAdd {
+		gameRoom.VoteBallot[gameRequest.PlayerID]++
+	}
+	log.Printf("current tally %v", gameRoom.VoteBallot[gameRequest.PlayerID])
+
+	if gameRequest.IsAdd && gameRoom.VoteBallot[gameRequest.PlayerID] > len(gameRoom.Players)/2 {
+		log.Printf("vote kick success, removing player")
+		delete(gameRoom.VoteBallot, gameRequest.PlayerID)
+
+		var targetConn *websocket.Conn
+		connRoom := u.Rooms[roomID]
+
+		for key, val := range connRoom {
+			if val.ID == gameRequest.PlayerID {
+				targetConn = key
+				break
+			}
+		}
+
+		if targetConn == nil {
+			return
+		}
+
+		evictionNotice := events.NewLeaveRoomResponse(true)
+		u.pushMessage(false, roomID, targetConn, evictionNotice)
+
+		broadcast := events.NewLeaveRoomBroadcast(gameRequest.PlayerID)
+		u.pushMessage(true, roomID, conn, broadcast)
+
+		// appoint new host if necessary
+		if gameRoom.HostID == gameRequest.PlayerID {
+			newHostID := gameRoom.NextHost()
+			changeHostBroadcast := events.NewChangeHostBroadcast(newHostID)
+			u.pushMessage(true, roomID, conn, changeHostBroadcast)
+		}
+
+		// choose next player if necessary
+		if gameRoom.IsStarted && gameRoom.TurnID == gameRequest.PlayerID {
+			playerIndex := gameRoom.GetPlayerIndex(gameRequest.PlayerID)
+			nextTurnIdx := gameRoom.NextPlayer(playerIndex)
+			nextPlayerBroadcast := events.NewPlayCardBroadcast(gameModel.Card{}, gameRoom.Count, gameRoom.IsClockwise, nextTurnIdx)
+			u.pushMessage(true, roomID, conn, nextPlayerBroadcast)
+		}
 	}
 }
 
@@ -222,10 +302,6 @@ func (u *gameUsecase) playCard(conn *websocket.Conn, roomID string, gameRequest 
 		return
 	}
 
-	for _, p := range gameRoom.Players {
-		log.Printf("%v's card %v", p.Name, p.Hand)
-	}
-
 	playedCard := player.Hand[gameRequest.HandIndex]
 	log.Printf("%v is playing: %v", player.Name, playedCard)
 
@@ -244,10 +320,6 @@ func (u *gameUsecase) playCard(conn *websocket.Conn, roomID string, gameRequest 
 		player.IsAlive = false
 		deadBroadcast := events.NewDeadPlayerBroadcast(player.PlayerID)
 		u.pushMessage(true, roomID, conn, deadBroadcast)
-	}
-
-	for _, p := range gameRoom.Players {
-		log.Printf("%v's card %v", p.Name, p.Hand)
 	}
 
 	if winner := gameRoom.GetWinner(); winner != "" {

@@ -26,6 +26,7 @@ type Room struct {
 	Deck        []Card             `json:"-"`
 	TurnID      string             `json:"id_turn"`
 	Count       int                `json:"count"`
+	VoteBallot  map[string]int     `json:"-"`
 }
 
 func NewRoom(id, host string, capacity int) *Room {
@@ -39,6 +40,7 @@ func NewRoom(id, host string, capacity int) *Room {
 		PlayerMap:   make(map[string]*Player),
 		Deck:        NewDeck(),
 		Count:       0,
+		VoteBallot:  make(map[string]int),
 	}
 }
 
