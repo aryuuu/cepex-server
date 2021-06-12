@@ -66,8 +66,8 @@ type StartGameResponse struct {
 }
 
 type StartGameBroadcast struct {
-	EventType    string `json:"event_type,omitempty"`
-	StarterIndex int    `json:"starter_idx"`
+	EventType string `json:"event_type,omitempty"`
+	StarterID string `json:"id_starter"`
 }
 
 type EndGameBroadcast struct {
@@ -96,11 +96,11 @@ type PlayCardResponse struct {
 }
 
 type PlayCardBroadcast struct {
-	EventType       string    `json:"event_type,omitempty"`
-	Card            game.Card `json:"card"`
-	Count           int       `json:"count,omitempty"`
-	IsClockwise     bool      `json:"is_clockwise"`
-	NextPlayerIndex int       `json:"next_player_idx"`
+	EventType    string    `json:"event_type,omitempty"`
+	Card         game.Card `json:"card"`
+	Count        int       `json:"count,omitempty"`
+	IsClockwise  bool      `json:"is_clockwise"`
+	NextPlayerID string    `json:"id_next_player"`
 }
 
 type TurnBroadcast struct {
@@ -252,10 +252,10 @@ func NewStartGameResponse(success bool) StartGameResponse {
 	return result
 }
 
-func NewStartGameBroadcast(starterIndex int) StartGameBroadcast {
+func NewStartGameBroadcast(starterID string) StartGameBroadcast {
 	result := StartGameBroadcast{
-		EventType:    "start-game-broadcast",
-		StarterIndex: starterIndex,
+		EventType: "start-game-broadcast",
+		StarterID: starterID,
 	}
 
 	return result
@@ -292,13 +292,13 @@ func NewPlayCardResponse(success bool, newHand []game.Card, status int, message 
 	return result
 }
 
-func NewPlayCardBroadcast(card game.Card, count int, isClockwise bool, nextPlayerIdx int) PlayCardBroadcast {
+func NewPlayCardBroadcast(card game.Card, count int, isClockwise bool, nextPlayerID string) PlayCardBroadcast {
 	result := PlayCardBroadcast{
-		EventType:       "play-card-broadcast",
-		Card:            card,
-		Count:           count,
-		IsClockwise:     isClockwise,
-		NextPlayerIndex: nextPlayerIdx,
+		EventType:    "play-card-broadcast",
+		Card:         card,
+		Count:        count,
+		IsClockwise:  isClockwise,
+		NextPlayerID: nextPlayerID,
 	}
 
 	return result

@@ -44,7 +44,7 @@ func NewRoom(id, host string, capacity int) *Room {
 	}
 }
 
-func (r *Room) StartGame() int {
+func (r *Room) StartGame() string {
 	r.IsStarted = true
 
 	for _, player := range r.Players {
@@ -55,7 +55,7 @@ func (r *Room) StartGame() int {
 	starterIndex := rand.Intn(len(r.Players))
 	r.TurnID = r.Players[starterIndex].PlayerID
 
-	return starterIndex
+	return r.TurnID
 }
 
 func (r *Room) EndGame() {
@@ -148,7 +148,7 @@ func (r *Room) PlayCard(playerID string, handIndex int, isAdd bool, targetID str
 	return nil
 }
 
-func (r *Room) NextPlayer(playerIndex int) int {
+func (r *Room) NextPlayer(playerIndex int) string {
 	var nextPlayerIndex int
 	if r.IsClockwise {
 		for {
@@ -173,7 +173,7 @@ func (r *Room) NextPlayer(playerIndex int) int {
 
 	r.TurnID = r.Players[nextPlayerIndex].PlayerID
 
-	return nextPlayerIndex
+	return r.TurnID
 }
 
 func (r *Room) NextHost() (newHostID string) {

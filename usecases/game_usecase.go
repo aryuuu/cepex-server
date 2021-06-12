@@ -184,8 +184,8 @@ func (u *gameUsecase) kickPlayer(conn *websocket.Conn, roomID string, gameReques
 	// choose next player if necessary
 	if gameRoom.IsStarted && gameRoom.TurnID == playerID {
 		playerIndex := gameRoom.GetPlayerIndex(playerID)
-		nextTurnIdx := gameRoom.NextPlayer(playerIndex)
-		newPlayerBroadcast := events.NewPlayCardBroadcast(gameModel.Card{}, gameRoom.Count, gameRoom.IsClockwise, nextTurnIdx)
+		nextTurnId := gameRoom.NextPlayer(playerIndex)
+		newPlayerBroadcast := events.NewPlayCardBroadcast(gameModel.Card{}, gameRoom.Count, gameRoom.IsClockwise, nextTurnId)
 		u.pushMessage(true, roomID, conn, newPlayerBroadcast)
 	}
 }
@@ -261,13 +261,13 @@ func (u *gameUsecase) startGame(conn *websocket.Conn, roomID string) {
 			u.pushMessage(false, roomID, conn, res)
 			return
 		}
-		starterIndex := gameRoom.StartGame()
+		starterID := gameRoom.StartGame()
 
 		u.dealCard(roomID)
 
-		notifContent := "game started, " + gameRoom.Players[starterIndex].Name + "'s turn"
+		notifContent := "game started, " + gameRoom.PlayerMap[starterID].Name + "'s turn"
 		notification := events.NewNotificationBroadcast(notifContent)
-		res := events.NewStartGameBroadcast(starterIndex)
+		res := events.NewStartGameBroadcast(starterID)
 
 		u.pushMessage(true, roomID, conn, res)
 		u.pushMessage(true, roomID, conn, notification)
@@ -344,19 +344,19 @@ func (u *gameUsecase) playCard(conn *websocket.Conn, roomID string, gameRequest 
 	res = events.NewPlayCardResponse(success, player.Hand, status, message)
 	u.pushMessage(false, roomID, conn, res)
 
-	var nextPlayerIndex int
+	var nextPlayerId string
 	if gameRoom.IsStarted {
 		if gameRoom.TurnID == playerID {
-			nextPlayerIndex = gameRoom.NextPlayer(playerIndex)
+			nextPlayerId = gameRoom.NextPlayer(playerIndex)
 		} else {
-			nextPlayerIndex = gameRoom.GetPlayerIndex(gameRoom.TurnID)
+			nextPlayerId = gameRoom.TurnID
 		}
 	}
 
 	if !success {
 		playedCard = gameModel.Card{}
 	}
-	broadcast := events.NewPlayCardBroadcast(playedCard, gameRoom.Count, gameRoom.IsClockwise, nextPlayerIndex)
+	broadcast := events.NewPlayCardBroadcast(playedCard, gameRoom.Count, gameRoom.IsClockwise, nextPlayerId)
 	u.pushMessage(true, roomID, conn, broadcast)
 }
 
