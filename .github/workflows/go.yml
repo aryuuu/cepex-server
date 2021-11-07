@@ -21,7 +21,9 @@ jobs:
       - name: Build go app 
         run: go build -o bin/app 
       - name: Check binary existance
-        run: ls bin/
+        run: | 
+          ls bin/
+          pwd
       - name: Set up docker build 
         uses: docker/setup-buildx-action@v1
       - name: Login to docker hub
