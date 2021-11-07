@@ -50,7 +50,7 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           script: |
             cd ~/cepex-server
-            git pull origin master
+            git pull origin main
             cat << EOF > .env 
             PORT=${{ secrets.PORT }}
             SERVICE_NAME=${{ secrets.SERVICE_NAME }}
