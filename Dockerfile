@@ -1,4 +1,4 @@
-FROM alpine:3.14
+FROM ubuntu:18.04
 
 # copy binary
 COPY bin/app /
