@@ -4,3 +4,5 @@ services:
     image: fattfatt/cepex-server:latest
     env_file: .env
     restart: always
+    ports:
+      - "3001:3001"
