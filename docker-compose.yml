@@ -1,0 +1,6 @@
+version: "3.8"
+services:
+  cepex:
+    image: fattfatt/cepex-server:latest
+    env_file: .env
+    restart: always
