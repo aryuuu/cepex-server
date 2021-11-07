@@ -1,4 +1,4 @@
-FROM alpine:1.1.1
+FROM alpine:3.14
 
 WORKDIR /app
 # copy binary
