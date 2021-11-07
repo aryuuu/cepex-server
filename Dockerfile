@@ -6,7 +6,7 @@ COPY . .
 # install deps
 RUN go get -d -v ./...
 # compile binary
-RUN go install -v ./...
+RUN go build -o cepex-server
 # run binary
-CMD ["app"]
+CMD ["./cepex-server"]
 
