@@ -18,12 +18,12 @@ jobs:
           go-version: ^1.13
       - name: Test
         run: go test -v ./...
-      - name: Build go app 
-        run: go build -o bin/app 
-      - name: Check binary existance
-        run: | 
-          ls bin/
-          pwd
+      # - name: Build go app 
+      #   run: go build -o bin/app 
+      # - name: Check binary existance
+      #   run: | 
+      #     ls bin/
+      #     pwd
       - name: Set up docker build 
         uses: docker/setup-buildx-action@v1
       - name: Login to docker hub

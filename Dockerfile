@@ -1,6 +1,12 @@
-FROM ubuntu:18.04
+FROM golang:1.17-alpine
 
-# copy binary
-COPY bin/app /
-# run binary 
-CMD [ "./app" ]
+WORKDIR /go/src/app
+# copy src
+COPY . .
+# install deps
+RUN go get -d -v ./...
+# compile binary
+RUN go install -v ./...
+# run binary
+CMD ["app"]
+
