@@ -12,6 +12,7 @@ type Player struct {
 	Name      string `json:"name,omitempty"`
 	AvatarURL string `json:"avatar_url"`
 	IsAlive   bool   `json:"is_alive"`
+	Score     int    `json:"score"`
 	Hand      []Card `json:"-"`
 }
 
@@ -52,4 +53,8 @@ func (p *Player) InsertHand(card Card, index int) {
 	} else {
 		p.Hand = append(p.Hand, card)
 	}
+}
+
+func (p *Player) Win() {
+	p.Score++
 }

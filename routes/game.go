@@ -42,7 +42,6 @@ func (m GameRouter) HandleCreateRoom(w http.ResponseWriter, r *http.Request) {
 
 func (m GameRouter) HandleGameEvent(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-
 	roomID := vars["roomID"]
 
 	conn, err := m.Upgrader.Upgrade(w, r, nil)

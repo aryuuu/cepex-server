@@ -16,17 +16,18 @@ type GameUsecase interface {
 
 // Room :nodoc:
 type Room struct {
-	RoomID      string             `json:"id_room,omitempty"`
-	Capacity    int                `json:"capacity,omitempty"`
-	HostID      string             `json:"id_host,omitempty"`
-	IsStarted   bool               `json:"is_started,omitempty"`
-	IsClockwise bool               `json:"is_clockwise,omitempty"`
-	Players     []*Player          `json:"players,omitempty"`
-	PlayerMap   map[string]*Player `json:"-"`
-	Deck        []Card             `json:"-"`
-	TurnID      string             `json:"id_turn"`
-	Count       int                `json:"count"`
-	VoteBallot  map[string]int     `json:"-"`
+	RoomID      string                     `json:"id_room,omitempty"`
+	Capacity    int                        `json:"capacity,omitempty"`
+	HostID      string                     `json:"id_host,omitempty"`
+	IsStarted   bool                       `json:"is_started,omitempty"`
+	IsClockwise bool                       `json:"is_clockwise,omitempty"`
+	Players     []*Player                  `json:"players,omitempty"`
+	PlayerMap   map[string]*Player         `json:"-"`
+	Deck        []Card                     `json:"-"`
+	TurnID      string                     `json:"id_turn"`
+	Count       int                        `json:"count"`
+	VoteBallot  map[string]int             `json:"-"`
+	Leaderboard map[string]LeaderboardItem `json:"-"`
 }
 
 func NewRoom(id, host string, capacity int) *Room {
@@ -41,6 +42,7 @@ func NewRoom(id, host string, capacity int) *Room {
 		Deck:        NewDeck(),
 		Count:       0,
 		VoteBallot:  make(map[string]int),
+		Leaderboard: make(map[string]LeaderboardItem),
 	}
 }
 
@@ -58,11 +60,12 @@ func (r *Room) StartGame() string {
 	return r.TurnID
 }
 
-func (r *Room) EndGame() {
+func (r *Room) EndGame(winnerID string) {
 	r.Count = 0
 	r.IsStarted = false
 	r.IsClockwise = false
 	r.Deck = NewDeck()
+	r.PlayerMap[winnerID].Win()
 
 	for _, p := range r.Players {
 		p.IsAlive = false
@@ -210,12 +213,12 @@ func (r *Room) GetPlayerIndex(playerID string) int {
 	return playerIndex
 }
 
-func (r *Room) GetWinner() (winner string) {
-	survivor := []string{}
+func (r *Room) GetWinner() (winner *Player) {
+	survivor := []*Player{}
 
 	for _, p := range r.Players {
 		if p.IsAlive {
-			survivor = append(survivor, p.PlayerID)
+			survivor = append(survivor, p)
 		}
 	}
 
@@ -223,5 +226,5 @@ func (r *Room) GetWinner() (winner string) {
 		return survivor[0]
 	}
 
-	return
+	return nil
 }

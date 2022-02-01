@@ -322,8 +322,8 @@ func (u *gameUsecase) playCard(conn *websocket.Conn, roomID string, gameRequest 
 		u.pushMessage(true, roomID, conn, deadBroadcast)
 	}
 
-	if winner := gameRoom.GetWinner(); winner != "" {
-		gameRoom.EndGame()
+	if winner := gameRoom.GetWinner(); winner != nil && winner.PlayerID != "" {
+		gameRoom.EndGame(winner.PlayerID)
 		endBroadcast := events.NewEndGameBroadcast(winner)
 		u.pushMessage(true, roomID, conn, endBroadcast)
 	}

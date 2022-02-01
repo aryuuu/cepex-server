@@ -58,6 +58,5 @@ func (m ProfileRouter) HandleProfilePicture(w http.ResponseWriter, r *http.Reque
 	}
 
 	w.WriteHeader(http.StatusOK)
-	// fmt.Fprintf(w, "Image URL: %s", result)
 	json.NewEncoder(w).Encode(body)
 }

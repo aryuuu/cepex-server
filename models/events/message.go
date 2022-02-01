@@ -65,14 +65,20 @@ type StartGameResponse struct {
 	StarterID string `json:"id_starter,omitempty"`
 }
 
+type LeaderboardResponse struct {
+	EventType   string           `json:"event_type,omitempty"`
+	Leaderboard game.Leaderboard `json:"leaderboard,omitempty"`
+}
+
 type StartGameBroadcast struct {
 	EventType string `json:"event_type,omitempty"`
 	StarterID string `json:"id_starter"`
 }
 
 type EndGameBroadcast struct {
-	EventType string `json:"event_type"`
-	WinnerID  string `json:"id_winner,omitempty"`
+	EventType   string `json:"event_type"`
+	WinnerID    string `json:"id_winner,omitempty"`
+	WinnerScore int    `json:"winner_score"`
 }
 
 type InitialHandResponse struct {
@@ -261,10 +267,11 @@ func NewStartGameBroadcast(starterID string) StartGameBroadcast {
 	return result
 }
 
-func NewEndGameBroadcast(winnerID string) EndGameBroadcast {
+func NewEndGameBroadcast(winner *game.Player) EndGameBroadcast {
 	result := EndGameBroadcast{
-		EventType: "end-game-broadcast",
-		WinnerID:  winnerID,
+		EventType:   "end-game-broadcast",
+		WinnerID:    winner.PlayerID,
+		WinnerScore: winner.Score,
 	}
 
 	return result
