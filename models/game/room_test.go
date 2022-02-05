@@ -83,7 +83,11 @@ func TestEndGame(t *testing.T) {
 	room.AddPlayer(player2)
 	room.StartGame()
 
-	room.EndGame()
+	player1.IsAlive = false
+
+	winner := room.GetWinner()
+
+	room.EndGame(winner.PlayerID)
 
 	equals(t, false, room.IsStarted)
 	equals(t, false, room.IsClockwise)
