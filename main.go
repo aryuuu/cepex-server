@@ -30,9 +30,12 @@ func main() {
 		CheckOrigin:     func(r *http.Request) bool { return true },
 	}
 
-	s3Repo := repositories.NewS3Repo(configureS3())
+	httpClient := new(http.Client)
 
-	profileUsecase := usecases.NewProfileUsecase(s3Repo)
+	s3Repo := repositories.NewS3Repo(configureS3())
+	imageRepository := repositories.NewImgurRepo(httpClient)
+
+	profileUsecase := usecases.NewProfileUsecase(s3Repo, imageRepository)
 	gameUsecase := usecases.NewGameUsecase()
 
 	profileRouter := r.PathPrefix("/profile").Subrouter()
@@ -49,10 +52,6 @@ func main() {
 
 	log.Printf("Listening on port %s...", configs.Service.Port)
 	log.Fatal(srv.ListenAndServe())
-}
-
-func initService() {
-
 }
 
 func configureS3() *session.Session {
