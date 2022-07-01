@@ -35,11 +35,12 @@ func main() {
 	profileUsecase := usecases.NewProfileUsecase(imageRepository)
 	gameUsecase := usecases.NewGameUsecase()
 
+	healthcheckRouter := r.PathPrefix("/healthcheck").Subrouter()
 	profileRouter := r.PathPrefix("/profile").Subrouter()
 	gameRouter := r.PathPrefix("/game").Subrouter()
 
+	routes.InitHealthcheckRouter(healthcheckRouter)
 	routes.InitProfileRouter(profileRouter, profileUsecase)
-
 	routes.InitGameRouter(gameRouter, upgrader, gameUsecase)
 
 	srv := &http.Server{
@@ -51,6 +52,7 @@ func main() {
 	log.Fatal(srv.ListenAndServe())
 }
 
+// TODO: reuse S3
 // func configureS3() *session.Session {
 // 	s, err := session.NewSession(&aws.Config{
 // 		Region:   aws.String("ap-south-1"),

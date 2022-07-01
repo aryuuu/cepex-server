@@ -4,6 +4,9 @@ run:
 build: 
 	go build main.go
 
+test: 
+	go test -v ./...
+
 lint: 
 	@echo "Applying linter"
 	golangci-lint version
