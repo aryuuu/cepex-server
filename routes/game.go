@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	gameModel "github.com/aryuuu/cepex-server/models/game"
-	"github.com/google/uuid"
+	"github.com/aryuuu/cepex-server/utils/common"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
@@ -33,7 +33,7 @@ func InitGameRouter(r *mux.Router, upgrader websocket.Upgrader, guc gameModel.Ga
 }
 
 func (m GameRouter) HandleCreateRoom(w http.ResponseWriter, r *http.Request) {
-	ID := uuid.New().String()
+	ID := common.GenRandomString(5)
 	log.Printf("Create new room with ID: %s", ID)
 
 	w.WriteHeader(http.StatusOK)
