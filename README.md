@@ -2,13 +2,13 @@
 
 Multiplayer online 100 card game
 
-## Prerequisite
+### Prerequisite
 
 - go ^1.15
 - docker
 - docker-compose
 
-## How to run
+### How to run
 
 - Copy `env.example` to `.env`
 
@@ -19,5 +19,17 @@ cp env.example env
 - run the service
 
 ```shell
-./script/env .env go run main.go
+make run
+```
+
+- or run the service in development mode with live-reloading
+
+```shell
+make dev-air
+```
+
+### Run the test
+
+```shell
+make test
 ```

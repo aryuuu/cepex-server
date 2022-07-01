@@ -5,6 +5,8 @@
 *.so
 *.dylib
 bin/*
+tmp/*
+engine
 
 # Test binary, built with `go test -c`
 *.test
@@ -16,3 +18,4 @@ bin/*
 # vendor/
 
 .env
+
