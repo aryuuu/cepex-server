@@ -191,6 +191,15 @@ func (r *Room) NextHost() (newHostID string) {
 	return
 }
 
+func (r *Room) IsUsernameExist(name string) bool {
+	for _, player := range r.Players {
+		if player.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
 func (r *Room) AddPlayer(player *Player) {
 	r.PlayerMap[player.PlayerID] = player
 	r.Players = append(r.Players, player)
