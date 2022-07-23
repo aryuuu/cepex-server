@@ -116,7 +116,7 @@ func (u *gameUsecase) joinRoom(conn *websocket.Conn, roomID string, gameRequest 
 	log.Printf("found room %v", roomID)
 	gameRoom := u.GameRooms[roomID]
     if gameRoom.IsUsernameExist(gameRequest.ClientName) {
-		log.Printf("username already exist", roomID)
+		log.Printf("username %s already exist", gameRequest.ClientName)
 		res := events.NewJoinRoomResponse(false, &gameModel.Room{}, "username already exist")
 		conn.WriteJSON(res)
 		return
