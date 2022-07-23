@@ -5,6 +5,32 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const (
+	CreateRoomEvent            = "create-room"
+	JoinRoomEvent              = "join-room"
+	JoinRoomBroadcastEvent     = "join-room-broadcast"
+	LeaveRoomEvent             = "leave-room"
+	LeaveRoomBroadcastEvent    = "leave-room-broadcast"
+	KickPlayerEvent            = "kick-player"
+	VoteKickEvent              = "vote-kick"
+	VoteKickPlayerEvent        = "vote-kick-player"
+	VoteKickBroadcastEvent     = "vote-kick-broadcast"
+	StartGameEvent             = "start-game"
+	StartGameBroadcastEvent    = "start-game-broadcast"
+	EndGameBroadcastEvent      = "end-game-broadcast"
+	InitialHandEvent           = "initial-hand"
+	PlayCardEvent              = "play-card"
+	PlayCardBroadcastEvent     = "play-card-broadcast"
+	TurnBroadcastEvent         = "turn-broadcast"
+	DeadPlayerEvent            = "dead-player"
+	ChangeHostBroadcastEvent   = "change-host"
+	ChatEvent                  = "chat"
+	UnicastSocketEvent         = "unicast"
+	BroadcastSocketEvent       = "broadcast"
+	MessageBroadcastEvent      = "message-broadcast"
+	NotificationBroadcastEvent = "notification-broadcast"
+)
+
 type SocketEvent struct {
 	EventType string          `json:"event_type"`
 	RoomID    string          `json:"id_room"`
@@ -148,7 +174,7 @@ type VoteKickPlayerBroadcast struct {
 
 func NewUnicastEvent(roomID string, conn *websocket.Conn, message interface{}) SocketEvent {
 	return SocketEvent{
-		EventType: "unicast",
+		EventType: UnicastSocketEvent,
 		RoomID:    roomID,
 		Conn:      conn,
 		Message:   message,
@@ -157,7 +183,7 @@ func NewUnicastEvent(roomID string, conn *websocket.Conn, message interface{}) S
 
 func NewBroadcastEvent(roomID string, message interface{}) SocketEvent {
 	return SocketEvent{
-		EventType: "broadcast",
+		EventType: BroadcastSocketEvent,
 		RoomID:    roomID,
 		Message:   message,
 	}
@@ -175,7 +201,7 @@ func NewCreateRoomResponse(success bool, roomID string, host *game.Player, detai
 	players := []*game.Player{host}
 
 	result := CreateRoomResponse{
-		EventType: "create-room",
+		EventType: CreateRoomEvent,
 		Success:   success,
 		NewRoom: game.Room{
 			RoomID:      roomID,
@@ -194,7 +220,7 @@ func NewCreateRoomResponse(success bool, roomID string, host *game.Player, detai
 
 func NewJoinRoomResponse(success bool, room *game.Room, detail string) JoinRoomResponse {
 	result := JoinRoomResponse{
-		EventType: "join-room",
+		EventType: JoinRoomEvent,
 		Success:   success,
 		NewRoom:   *room,
 		Detail:    detail,
@@ -205,7 +231,7 @@ func NewJoinRoomResponse(success bool, room *game.Room, detail string) JoinRoomR
 
 func NewJoinRoomBroadcast(player *game.Player) JoinRoomBroadcast {
 	result := JoinRoomBroadcast{
-		EventType: "join-room-broadcast",
+		EventType: JoinRoomBroadcastEvent,
 		NewPlayer: player,
 	}
 
@@ -214,7 +240,7 @@ func NewJoinRoomBroadcast(player *game.Player) JoinRoomBroadcast {
 
 func NewLeaveRoomResponse(success bool) LeaveRoomResponse {
 	result := LeaveRoomResponse{
-		EventType: "leave-room",
+		EventType: LeaveRoomEvent,
 		Success:   success,
 	}
 
@@ -223,7 +249,7 @@ func NewLeaveRoomResponse(success bool) LeaveRoomResponse {
 
 func NewLeaveRoomBroadcast(playerID string) LeaveRoomBroadcast {
 	result := LeaveRoomBroadcast{
-		EventType:       "leave-room-broadcast",
+		EventType:       LeaveRoomBroadcastEvent,
 		LeavingPlayerID: playerID,
 	}
 
@@ -232,7 +258,7 @@ func NewLeaveRoomBroadcast(playerID string) LeaveRoomBroadcast {
 
 func NewMessageBroadcast(message, sender string) MessageBroadcast {
 	result := MessageBroadcast{
-		EventType: "message-broadcast",
+		EventType: MessageBroadcastEvent,
 		Message:   message,
 		Sender:    sender,
 	}
@@ -242,7 +268,7 @@ func NewMessageBroadcast(message, sender string) MessageBroadcast {
 
 func NewNotificationBroadcast(message string) NotificationBroadcast {
 	result := NotificationBroadcast{
-		EventType: "notification-broadcast",
+		EventType: NotificationBroadcastEvent,
 		Message:   message,
 	}
 
@@ -251,7 +277,7 @@ func NewNotificationBroadcast(message string) NotificationBroadcast {
 
 func NewStartGameResponse(success bool) StartGameResponse {
 	result := StartGameResponse{
-		EventType: "start-game",
+		EventType: StartGameEvent,
 		Success:   success,
 	}
 
@@ -260,7 +286,7 @@ func NewStartGameResponse(success bool) StartGameResponse {
 
 func NewStartGameBroadcast(starterID string) StartGameBroadcast {
 	result := StartGameBroadcast{
-		EventType: "start-game-broadcast",
+		EventType: StartGameBroadcastEvent,
 		StarterID: starterID,
 	}
 
@@ -269,7 +295,7 @@ func NewStartGameBroadcast(starterID string) StartGameBroadcast {
 
 func NewEndGameBroadcast(winner *game.Player) EndGameBroadcast {
 	result := EndGameBroadcast{
-		EventType:   "end-game-broadcast",
+		EventType:   EndGameBroadcastEvent,
 		WinnerID:    winner.PlayerID,
 		WinnerScore: winner.Score,
 	}
@@ -279,7 +305,7 @@ func NewEndGameBroadcast(winner *game.Player) EndGameBroadcast {
 
 func NewInitialHandResponse(hand []game.Card) InitialHandResponse {
 	result := InitialHandResponse{
-		EventType: "initial-hand",
+		EventType: InitialHandEvent,
 		NewHand:   hand,
 	}
 
@@ -288,7 +314,7 @@ func NewInitialHandResponse(hand []game.Card) InitialHandResponse {
 
 func NewPlayCardResponse(success bool, newHand []game.Card, status int, message string) PlayCardResponse {
 	result := PlayCardResponse{
-		EventType: "play-card",
+		EventType: PlayCardEvent,
 		Success:   success,
 		NewHand:   newHand,
 		IsUpdate:  newHand != nil,
@@ -301,7 +327,7 @@ func NewPlayCardResponse(success bool, newHand []game.Card, status int, message 
 
 func NewPlayCardBroadcast(card game.Card, count int, isClockwise bool, nextPlayerID string) PlayCardBroadcast {
 	result := PlayCardBroadcast{
-		EventType:    "play-card-broadcast",
+		EventType:    PlayCardBroadcastEvent,
 		Card:         card,
 		Count:        count,
 		IsClockwise:  isClockwise,
@@ -313,7 +339,7 @@ func NewPlayCardBroadcast(card game.Card, count int, isClockwise bool, nextPlaye
 
 func NewTurnBroadcast(playerID string) TurnBroadcast {
 	result := TurnBroadcast{
-		EventType: "turn-broadcast",
+		EventType: TurnBroadcastEvent,
 		PlayerID:  playerID,
 	}
 
@@ -322,7 +348,7 @@ func NewTurnBroadcast(playerID string) TurnBroadcast {
 
 func NewDeadPlayerBroadcast(playerID string) DeadPlayerBroadcast {
 	result := DeadPlayerBroadcast{
-		EventType:    "dead-player",
+		EventType:    DeadPlayerEvent,
 		DeadPlayerID: playerID,
 	}
 
@@ -331,21 +357,21 @@ func NewDeadPlayerBroadcast(playerID string) DeadPlayerBroadcast {
 
 func NewChangeHostBroadcast(hostID string) ChangeHostBroadcast {
 	return ChangeHostBroadcast{
-		EventType: "change-host",
+		EventType: ChangeHostBroadcastEvent,
 		NewHostID: hostID,
 	}
 }
 
 func NewVoteKickPlayerResponse(success bool) VoteKickPlayerResponse {
 	return VoteKickPlayerResponse{
-		EventType: "vote-kick",
+		EventType: VoteKickEvent,
 		Success:   success,
 	}
 }
 
 func NewVoteKickPlayerBroadcast(targetID, issuerName string) VoteKickPlayerBroadcast {
 	return VoteKickPlayerBroadcast{
-		EventType:  "vote-kick-broadcast",
+		EventType:  VoteKickBroadcastEvent,
 		TargetID:   targetID,
 		IssuerName: issuerName,
 	}
