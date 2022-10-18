@@ -84,7 +84,6 @@ func (u *gameUsecase) createRoom(conn *websocket.Conn, roomID string, gameReques
 
 	if len(u.Rooms) >= int(configs.Constant.Capacity) {
 		message := events.NewCreateRoomResponse(false, roomID, nil, "Server is full")
-		// u.pushMessage(false, roomID, conn, message)
 		u.pushUnicastMessage(roomID, conn, message)
 		return
 	}
@@ -93,7 +92,6 @@ func (u *gameUsecase) createRoom(conn *websocket.Conn, roomID string, gameReques
 
 	if ok {
 		message := events.NewCreateRoomResponse(false, roomID, nil, "Room already exists")
-		// u.pushMessage(false, roomID, conn, message)
 		u.pushUnicastMessage(roomID, conn, message)
 		return
 	}
@@ -105,7 +103,6 @@ func (u *gameUsecase) createRoom(conn *websocket.Conn, roomID string, gameReques
 	u.registerPlayer(roomID, conn, player)
 
 	res := events.NewCreateRoomResponse(true, roomID, player, "")
-	// u.pushMessage(false, roomID, conn, res)
 	u.pushUnicastMessage(roomID, conn, res)
 }
 
@@ -134,11 +131,9 @@ func (u *gameUsecase) joinRoom(conn *websocket.Conn, roomID string, gameRequest 
 	u.registerPlayer(roomID, conn, player)
 
 	res := events.NewJoinRoomResponse(ok, gameRoom, "")
-	// u.pushMessage(false, roomID, conn, res)
 	u.pushUnicastMessage(roomID, conn, res)
 
 	broadcast := events.NewJoinRoomBroadcast(player)
-	// u.pushMessage(true, roomID, nil, broadcast)
 	u.pushBroadcastMessage(roomID, broadcast)
 }
 
@@ -159,15 +154,16 @@ func (u *gameUsecase) addBotPlayer(conn *websocket.Conn, roomID string, gameRequ
 	// TODO: broadcast new bot player to the room
 
 	player := gameModel.NewBotPlayer()
-	u.registerPlayer(roomID, conn, player)
+	// u.registerPlayer(roomID, conn, player)
+	u.registerBotPlayer(roomID, player)
 
 	// TODO: change response to adding new bot player
 	gameRoom := u.GameRooms[roomID]
-	res := events.NewJoinRoomResponse(ok, gameRoom, "")
+	res := events.NewAddBotResponse(ok, gameRoom, "")
 	// u.pushMessage(false, roomID, conn, res)
 	u.pushUnicastMessage(roomID, conn, res)
 
-	broadcast := events.NewJoinRoomBroadcast(player)
+	broadcast := events.NewAddBotBroadcast(player)
 	// u.pushMessage(true, roomID, nil, broadcast)
 	u.pushBroadcastMessage(roomID, broadcast)
 }
@@ -500,6 +496,14 @@ func (u *gameUsecase) createConnectionRoom(roomID string, conn *websocket.Conn) 
 func (u *gameUsecase) createGameRoom(roomID string, hostID string) {
 	gameRoom := gameModel.NewRoom(roomID, hostID, 4)
 	u.GameRooms[roomID] = gameRoom
+}
+
+func (u *gameUsecase) registerBotPlayer(roomID string, player *gameModel.Player) {
+	// we don't need connection for bots, skip this part
+	// u.Rooms[roomID][conn] = NewConnection(player.PlayerID)
+	u.GameRooms[roomID].AddPlayer(player)
+	// we don't need to send any websocket events to bots either, skip this part
+	// go u.writePump(conn, roomID)
 }
 
 func (u *gameUsecase) registerPlayer(roomID string, conn *websocket.Conn, player *gameModel.Player) {

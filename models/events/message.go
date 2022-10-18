@@ -30,6 +30,7 @@ const (
 	MessageBroadcastEvent      = "message-broadcast"
 	NotificationBroadcastEvent = "notification-broadcast"
 	AddBotEvent                = "add-bot"
+	AddBotBroadcatEvent        = "add-bot-broadcast"
 	KickBotEvent               = "kick-bot"
 )
 
@@ -62,6 +63,19 @@ type CreateRoomResponse struct {
 	NewRoom   game.Room `json:"room,omitempty"`
 	Detail    string    `json:"detail,omitempty"`
 	// Hand      []game.Card `json:"hand"`
+}
+
+type AddBotResponse struct {
+	EventType string    `json:"event_type,omitempty"`
+	Success   bool      `json:"success"`
+	NewRoom   game.Room `json:"new_room,omitempty"`
+	Detail    string    `json:"detail,omitempty"`
+	// Hand      []game.Card `json:"hand"`
+}
+
+type AddBotBroadcast struct {
+	EventType string       `json:"event_type,omitempty"`
+	NewPlayer *game.Player `json:"new_player,omitempty"`
 }
 
 type JoinRoomResponse struct {
@@ -220,12 +234,32 @@ func NewCreateRoomResponse(success bool, roomID string, host *game.Player, detai
 	return result
 }
 
+func NewAddBotResponse(success bool, room *game.Room, detail string) AddBotResponse {
+	result := AddBotResponse{
+		EventType: AddBotEvent,
+		Success:   success,
+		NewRoom:   *room,
+		Detail:    detail,
+	}
+
+	return result
+}
+
 func NewJoinRoomResponse(success bool, room *game.Room, detail string) JoinRoomResponse {
 	result := JoinRoomResponse{
 		EventType: JoinRoomEvent,
 		Success:   success,
 		NewRoom:   *room,
 		Detail:    detail,
+	}
+
+	return result
+}
+
+func NewAddBotBroadcast(player *game.Player) AddBotBroadcast {
+	result := AddBotBroadcast{
+		EventType: AddBotBroadcatEvent,
+		NewPlayer: player,
 	}
 
 	return result
