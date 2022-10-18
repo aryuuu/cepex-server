@@ -52,6 +52,7 @@ func (u *gameUsecase) Connect(conn *websocket.Conn, roomID string) {
 		}
 		log.Printf("gameRequest: %v", gameRequest)
 
+		// TODO: handle bot adding event
 		switch gameRequest.EventType {
 		case events.CreateRoomEvent:
 			u.createRoom(conn, roomID, gameRequest)
@@ -69,6 +70,10 @@ func (u *gameUsecase) Connect(conn *websocket.Conn, roomID string) {
 			u.playCard(conn, roomID, gameRequest)
 		case events.ChatEvent:
 			u.broadcastChat(conn, roomID, gameRequest)
+		case events.AddBotEvent:
+			u.addBotPlayer(conn, roomID, gameRequest)
+		case events.KickBotEvent:
+			u.kickBotPlayer(conn, roomID, gameRequest)
 		default:
 		}
 	}
@@ -79,7 +84,8 @@ func (u *gameUsecase) createRoom(conn *websocket.Conn, roomID string, gameReques
 
 	if len(u.Rooms) >= int(configs.Constant.Capacity) {
 		message := events.NewCreateRoomResponse(false, roomID, nil, "Server is full")
-		u.pushMessage(false, roomID, conn, message)
+		// u.pushMessage(false, roomID, conn, message)
+		u.pushUnicastMessage(roomID, conn, message)
 		return
 	}
 
@@ -87,7 +93,8 @@ func (u *gameUsecase) createRoom(conn *websocket.Conn, roomID string, gameReques
 
 	if ok {
 		message := events.NewCreateRoomResponse(false, roomID, nil, "Room already exists")
-		u.pushMessage(false, roomID, conn, message)
+		// u.pushMessage(false, roomID, conn, message)
+		u.pushUnicastMessage(roomID, conn, message)
 		return
 	}
 
@@ -98,7 +105,8 @@ func (u *gameUsecase) createRoom(conn *websocket.Conn, roomID string, gameReques
 	u.registerPlayer(roomID, conn, player)
 
 	res := events.NewCreateRoomResponse(true, roomID, player, "")
-	u.pushMessage(false, roomID, conn, res)
+	// u.pushMessage(false, roomID, conn, res)
+	u.pushUnicastMessage(roomID, conn, res)
 }
 
 func (u *gameUsecase) joinRoom(conn *websocket.Conn, roomID string, gameRequest events.GameRequest) {
@@ -115,21 +123,53 @@ func (u *gameUsecase) joinRoom(conn *websocket.Conn, roomID string, gameRequest 
 
 	log.Printf("found room %v", roomID)
 	gameRoom := u.GameRooms[roomID]
-    if gameRoom.IsUsernameExist(gameRequest.ClientName) {
+	if gameRoom.IsUsernameExist(gameRequest.ClientName) {
 		log.Printf("username %s already exist", gameRequest.ClientName)
 		res := events.NewJoinRoomResponse(false, &gameModel.Room{}, "username already exist")
 		conn.WriteJSON(res)
 		return
-    }
-    
+	}
+
 	player := gameModel.NewPlayer(gameRequest.ClientName, gameRequest.AvatarURL)
 	u.registerPlayer(roomID, conn, player)
 
 	res := events.NewJoinRoomResponse(ok, gameRoom, "")
-	u.pushMessage(false, roomID, conn, res)
+	// u.pushMessage(false, roomID, conn, res)
+	u.pushUnicastMessage(roomID, conn, res)
 
 	broadcast := events.NewJoinRoomBroadcast(player)
-	u.pushMessage(true, roomID, nil, broadcast)
+	// u.pushMessage(true, roomID, nil, broadcast)
+	u.pushBroadcastMessage(roomID, broadcast)
+}
+
+func (u *gameUsecase) addBotPlayer(conn *websocket.Conn, roomID string, gameRequest events.GameRequest) {
+	log.Printf("Client trying add bot to room %v", roomID)
+
+	_, ok := u.Rooms[roomID]
+
+	if !ok {
+		log.Printf("room %v does not exist", roomID)
+		res := events.NewJoinRoomResponse(ok, &gameModel.Room{}, "")
+		conn.WriteJSON(res)
+		return
+	}
+
+	// TODO: create new bot player
+	// TODO: register bot to room
+	// TODO: broadcast new bot player to the room
+
+	player := gameModel.NewBotPlayer()
+	u.registerPlayer(roomID, conn, player)
+
+	// TODO: change response to adding new bot player
+	gameRoom := u.GameRooms[roomID]
+	res := events.NewJoinRoomResponse(ok, gameRoom, "")
+	// u.pushMessage(false, roomID, conn, res)
+	u.pushUnicastMessage(roomID, conn, res)
+
+	broadcast := events.NewJoinRoomBroadcast(player)
+	// u.pushMessage(true, roomID, nil, broadcast)
+	u.pushBroadcastMessage(roomID, broadcast)
 }
 
 func (u *gameUsecase) kickPlayer(conn *websocket.Conn, roomID string, gameRequest events.GameRequest) {
@@ -147,34 +187,35 @@ func (u *gameUsecase) kickPlayer(conn *websocket.Conn, roomID string, gameReques
 		room := u.GameRooms[roomID]
 		if room == nil {
 			res := events.NewVoteKickPlayerResponse(false)
-			u.pushMessage(false, roomID, conn, res)
+			// u.pushMessage(false, roomID, conn, res)
+			u.pushUnicastMessage(roomID, conn, res)
 			return
 		}
 
 		_, ok := room.PlayerMap[playerID]
 		if !ok {
 			res := events.NewVoteKickPlayerResponse(false)
-			u.pushMessage(false, roomID, conn, res)
+			u.pushUnicastMessage(roomID, conn, res)
 			return
 		}
 
 		res := events.NewVoteKickPlayerResponse(true)
-		u.pushMessage(false, roomID, conn, res)
+		u.pushUnicastMessage(roomID, conn, res)
 
 		u.GameRooms[roomID].VoteBallot[playerID] = 0
 		issuerID := u.Rooms[roomID][conn].ID
 		voteKickBroadcast := events.NewVoteKickPlayerBroadcast(playerID, u.GameRooms[roomID].PlayerMap[issuerID].Name)
-		u.pushMessage(true, roomID, conn, voteKickBroadcast)
+		u.pushBroadcastMessage(roomID, voteKickBroadcast)
 		return
 	}
 
 	_, ok := u.Rooms[roomID]
 	res := events.NewLeaveRoomResponse(true)
-	u.pushMessage(false, roomID, conn, res)
+	u.pushUnicastMessage(roomID, conn, res)
 
 	if ok {
 		broadcast := events.NewLeaveRoomBroadcast(playerID)
-		u.pushMessage(true, roomID, conn, broadcast)
+		u.pushBroadcastMessage(roomID, broadcast)
 	}
 
 	gameRoom := u.GameRooms[roomID]
@@ -187,7 +228,7 @@ func (u *gameUsecase) kickPlayer(conn *websocket.Conn, roomID string, gameReques
 	if gameRoom.HostID == playerID {
 		newHostID := gameRoom.NextHost()
 		changeHostBroadcast := events.NewChangeHostBroadcast(newHostID)
-		u.pushMessage(true, roomID, conn, changeHostBroadcast)
+		u.pushBroadcastMessage(roomID, changeHostBroadcast)
 	}
 
 	// choose next player if necessary
@@ -195,7 +236,75 @@ func (u *gameUsecase) kickPlayer(conn *websocket.Conn, roomID string, gameReques
 		playerIndex := gameRoom.GetPlayerIndex(playerID)
 		nextTurnId := gameRoom.NextPlayer(playerIndex)
 		newPlayerBroadcast := events.NewPlayCardBroadcast(gameModel.Card{}, gameRoom.Count, gameRoom.IsClockwise, nextTurnId)
-		u.pushMessage(true, roomID, conn, newPlayerBroadcast)
+		u.pushBroadcastMessage(roomID, newPlayerBroadcast)
+	}
+}
+
+// TODO: implement this function
+func (u *gameUsecase) kickBotPlayer(conn *websocket.Conn, roomID string, gameRequest events.GameRequest) {
+	log.Printf("Client trying to kick bot from room %v", roomID)
+
+	var playerID string
+
+	if gameRequest.PlayerID == "" {
+		player := u.Rooms[roomID][conn]
+		if player != nil {
+			playerID = u.Rooms[roomID][conn].ID
+		}
+	} else {
+		playerID = gameRequest.PlayerID
+		room := u.GameRooms[roomID]
+		if room == nil {
+			res := events.NewVoteKickPlayerResponse(false)
+			u.pushUnicastMessage(roomID, conn, res)
+			return
+		}
+
+		_, ok := room.PlayerMap[playerID]
+		if !ok {
+			res := events.NewVoteKickPlayerResponse(false)
+			u.pushUnicastMessage(roomID, conn, res)
+			return
+		}
+
+		res := events.NewVoteKickPlayerResponse(true)
+		u.pushUnicastMessage(roomID, conn, res)
+
+		u.GameRooms[roomID].VoteBallot[playerID] = 0
+		issuerID := u.Rooms[roomID][conn].ID
+		voteKickBroadcast := events.NewVoteKickPlayerBroadcast(playerID, u.GameRooms[roomID].PlayerMap[issuerID].Name)
+		u.pushBroadcastMessage(roomID, voteKickBroadcast)
+		return
+	}
+
+	_, ok := u.Rooms[roomID]
+	res := events.NewLeaveRoomResponse(true)
+	u.pushUnicastMessage(roomID, conn, res)
+
+	if ok {
+		broadcast := events.NewLeaveRoomBroadcast(playerID)
+		u.pushBroadcastMessage(roomID, broadcast)
+	}
+
+	gameRoom := u.GameRooms[roomID]
+
+	if gameRoom == nil {
+		return
+	}
+
+	// appoint new host if necessary
+	if gameRoom.HostID == playerID {
+		newHostID := gameRoom.NextHost()
+		changeHostBroadcast := events.NewChangeHostBroadcast(newHostID)
+		u.pushBroadcastMessage(roomID, changeHostBroadcast)
+	}
+
+	// choose next player if necessary
+	if gameRoom.IsStarted && gameRoom.TurnID == playerID {
+		playerIndex := gameRoom.GetPlayerIndex(playerID)
+		nextTurnId := gameRoom.NextPlayer(playerIndex)
+		newPlayerBroadcast := events.NewPlayCardBroadcast(gameModel.Card{}, gameRoom.Count, gameRoom.IsClockwise, nextTurnId)
+		u.pushBroadcastMessage(roomID, newPlayerBroadcast)
 	}
 }
 
@@ -233,16 +342,16 @@ func (u *gameUsecase) voteKickPlayer(conn *websocket.Conn, roomID string, gameRe
 		}
 
 		evictionNotice := events.NewLeaveRoomResponse(true)
-		u.pushMessage(false, roomID, targetConn, evictionNotice)
+		u.pushUnicastMessage(roomID, targetConn, evictionNotice)
 
 		broadcast := events.NewLeaveRoomBroadcast(gameRequest.PlayerID)
-		u.pushMessage(true, roomID, conn, broadcast)
+		u.pushBroadcastMessage(roomID, broadcast)
 
 		// appoint new host if necessary
 		if gameRoom.HostID == gameRequest.PlayerID {
 			newHostID := gameRoom.NextHost()
 			changeHostBroadcast := events.NewChangeHostBroadcast(newHostID)
-			u.pushMessage(true, roomID, conn, changeHostBroadcast)
+			u.pushBroadcastMessage(roomID, changeHostBroadcast)
 		}
 
 		// choose next player if necessary
@@ -250,7 +359,7 @@ func (u *gameUsecase) voteKickPlayer(conn *websocket.Conn, roomID string, gameRe
 			playerIndex := gameRoom.GetPlayerIndex(gameRequest.PlayerID)
 			nextTurnIdx := gameRoom.NextPlayer(playerIndex)
 			nextPlayerBroadcast := events.NewPlayCardBroadcast(gameModel.Card{}, gameRoom.Count, gameRoom.IsClockwise, nextTurnIdx)
-			u.pushMessage(true, roomID, conn, nextPlayerBroadcast)
+			u.pushBroadcastMessage(roomID, nextPlayerBroadcast)
 		}
 	}
 }
@@ -262,13 +371,13 @@ func (u *gameUsecase) startGame(conn *websocket.Conn, roomID string) {
 
 	if playerID != gameRoom.HostID {
 		res := events.NewStartGameResponse(false)
-		u.pushMessage(false, roomID, conn, res)
+		u.pushUnicastMessage(roomID, conn, res)
 		return
 	}
 
 	if len(gameRoom.Players) < 2 {
 		res := events.NewStartGameResponse(false)
-		u.pushMessage(false, roomID, conn, res)
+		u.pushUnicastMessage(roomID, conn, res)
 		return
 	}
 
@@ -280,8 +389,8 @@ func (u *gameUsecase) startGame(conn *websocket.Conn, roomID string) {
 	notification := events.NewNotificationBroadcast(notifContent)
 	res := events.NewStartGameBroadcast(starterID)
 
-	u.pushMessage(true, roomID, conn, res)
-	u.pushMessage(true, roomID, conn, notification)
+	u.pushBroadcastMessage(roomID, res)
+	u.pushBroadcastMessage(roomID, notification)
 }
 
 func (u *gameUsecase) playCard(conn *websocket.Conn, roomID string, gameRequest events.GameRequest) {
@@ -290,14 +399,14 @@ func (u *gameUsecase) playCard(conn *websocket.Conn, roomID string, gameRequest 
 	if !gameRoom.IsStarted {
 		log.Printf("game is not started")
 		res := events.NewPlayCardResponse(false, nil, 3, "Game is not started")
-		u.pushMessage(false, roomID, conn, res)
+		u.pushUnicastMessage(roomID, conn, res)
 		return
 	}
 
 	if gameRoom.TurnID != playerID {
 		log.Printf("its not your turn yet")
 		res := events.NewPlayCardResponse(false, nil, 3, "Please wait for your turn")
-		u.pushMessage(false, roomID, conn, res)
+		u.pushUnicastMessage(roomID, conn, res)
 		return
 	}
 
@@ -308,7 +417,7 @@ func (u *gameUsecase) playCard(conn *websocket.Conn, roomID string, gameRequest 
 	if !player.IsAlive {
 		log.Printf("this player is dead")
 		res := events.NewPlayCardResponse(false, nil, 3, "You are already dead")
-		u.pushMessage(false, roomID, conn, res)
+		u.pushUnicastMessage(roomID, conn, res)
 		return
 	}
 
@@ -329,13 +438,13 @@ func (u *gameUsecase) playCard(conn *websocket.Conn, roomID string, gameRequest 
 	if len(player.Hand) == 0 {
 		player.IsAlive = false
 		deadBroadcast := events.NewDeadPlayerBroadcast(player.PlayerID)
-		u.pushMessage(true, roomID, conn, deadBroadcast)
+		u.pushBroadcastMessage(roomID, deadBroadcast)
 	}
 
 	if winner := gameRoom.GetWinner(); winner != nil && winner.PlayerID != "" {
 		gameRoom.EndGame(winner.PlayerID)
 		endBroadcast := events.NewEndGameBroadcast(winner)
-		u.pushMessage(true, roomID, conn, endBroadcast)
+		u.pushBroadcastMessage(roomID, endBroadcast)
 	}
 
 	message := ""
@@ -344,7 +453,7 @@ func (u *gameUsecase) playCard(conn *websocket.Conn, roomID string, gameRequest 
 		status = 1
 		res = events.NewPlayCardResponse(false, player.Hand, status, "Try discarding hand")
 		res.HandIndex = gameRequest.HandIndex
-		u.pushMessage(false, roomID, conn, res)
+		u.pushUnicastMessage(roomID, conn, res)
 		return
 	}
 
@@ -352,7 +461,7 @@ func (u *gameUsecase) playCard(conn *websocket.Conn, roomID string, gameRequest 
 		message = "Hand discarded"
 	}
 	res = events.NewPlayCardResponse(success, player.Hand, status, message)
-	u.pushMessage(false, roomID, conn, res)
+	u.pushUnicastMessage(roomID, conn, res)
 
 	var nextPlayerId string
 	if gameRoom.IsStarted {
@@ -367,7 +476,7 @@ func (u *gameUsecase) playCard(conn *websocket.Conn, roomID string, gameRequest 
 		playedCard = gameModel.Card{}
 	}
 	broadcast := events.NewPlayCardBroadcast(playedCard, gameRoom.Count, gameRoom.IsClockwise, nextPlayerId)
-	u.pushMessage(true, roomID, conn, broadcast)
+	u.pushBroadcastMessage(roomID, broadcast)
 }
 
 func (u *gameUsecase) broadcastChat(conn *websocket.Conn, roomID string, gameRequest events.GameRequest) {
@@ -380,7 +489,7 @@ func (u *gameUsecase) broadcastChat(conn *websocket.Conn, roomID string, gameReq
 
 		log.Printf("player %s send chat", playerName)
 		broadcast := events.NewMessageBroadcast(gameRequest.Message, playerName)
-		u.pushMessage(true, roomID, conn, broadcast)
+		u.pushBroadcastMessage(roomID, broadcast)
 	}
 }
 
@@ -444,7 +553,7 @@ func (u *gameUsecase) dealCard(roomID string) {
 	for connection, playerID := range room {
 		player := u.GameRooms[roomID].PlayerMap[playerID.ID]
 		message := events.NewInitialHandResponse(player.Hand)
-		u.pushMessage(false, roomID, connection, message)
+		u.pushUnicastMessage(roomID, connection, message)
 	}
 }
 
@@ -456,7 +565,7 @@ func (u *gameUsecase) RunSwitch() {
 			continue
 		}
 
-		if event.EventType == events.UnicastSocketEvent{
+		if event.EventType == events.UnicastSocketEvent {
 			pConn := conRoom[event.Conn]
 			if pConn == nil {
 				continue
@@ -470,12 +579,12 @@ func (u *gameUsecase) RunSwitch() {
 	}
 }
 
-func (u *gameUsecase) pushMessage(broadcast bool, roomID string, conn *websocket.Conn, message interface{}) {
-	if broadcast {
-		event := events.NewBroadcastEvent(roomID, message)
-		u.SwitchQueue <- event
-	} else {
-		event := events.NewUnicastEvent(roomID, conn, message)
-		u.SwitchQueue <- event
-	}
+func (u *gameUsecase) pushUnicastMessage(roomID string, conn *websocket.Conn, message interface{}) {
+	event := events.NewUnicastEvent(roomID, conn, message)
+	u.SwitchQueue <- event
+}
+
+func (u *gameUsecase) pushBroadcastMessage(roomID string, message interface{}) {
+	event := events.NewBroadcastEvent(roomID, message)
+	u.SwitchQueue <- event
 }
