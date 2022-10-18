@@ -149,22 +149,13 @@ func (u *gameUsecase) addBotPlayer(conn *websocket.Conn, roomID string, gameRequ
 		return
 	}
 
-	// TODO: create new bot player
-	// TODO: register bot to room
-	// TODO: broadcast new bot player to the room
-
 	player := gameModel.NewBotPlayer()
-	// u.registerPlayer(roomID, conn, player)
 	u.registerBotPlayer(roomID, player)
 
-	// TODO: change response to adding new bot player
-	gameRoom := u.GameRooms[roomID]
-	res := events.NewAddBotResponse(ok, gameRoom, "")
-	// u.pushMessage(false, roomID, conn, res)
+	res := events.NewAddBotResponse(ok, "")
 	u.pushUnicastMessage(roomID, conn, res)
 
 	broadcast := events.NewAddBotBroadcast(player)
-	// u.pushMessage(true, roomID, nil, broadcast)
 	u.pushBroadcastMessage(roomID, broadcast)
 }
 

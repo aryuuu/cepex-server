@@ -234,11 +234,10 @@ func NewCreateRoomResponse(success bool, roomID string, host *game.Player, detai
 	return result
 }
 
-func NewAddBotResponse(success bool, room *game.Room, detail string) AddBotResponse {
+func NewAddBotResponse(success bool, detail string) AddBotResponse {
 	result := AddBotResponse{
 		EventType: AddBotEvent,
 		Success:   success,
-		NewRoom:   *room,
 		Detail:    detail,
 	}
 
