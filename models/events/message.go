@@ -29,6 +29,8 @@ const (
 	BroadcastSocketEvent       = "broadcast"
 	MessageBroadcastEvent      = "message-broadcast"
 	NotificationBroadcastEvent = "notification-broadcast"
+	AddBotEvent                = "add-bot"
+	KickBotEvent               = "kick-bot"
 )
 
 type SocketEvent struct {
