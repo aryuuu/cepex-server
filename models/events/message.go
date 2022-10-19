@@ -30,8 +30,9 @@ const (
 	MessageBroadcastEvent      = "message-broadcast"
 	NotificationBroadcastEvent = "notification-broadcast"
 	AddBotEvent                = "add-bot"
-	AddBotBroadcatEvent        = "add-bot-broadcast"
+	AddBotBroadcastEvent       = "add-bot-broadcast"
 	KickBotEvent               = "kick-bot"
+	KickBotBroadcastEvent      = "kick-bot-broadcast"
 )
 
 type SocketEvent struct {
@@ -177,6 +178,11 @@ type ChangeHostBroadcast struct {
 	NewHostID string `json:"id_new_host"`
 }
 
+type KickBotResponse struct {
+	EventType string `json:"event_type"`
+	Success   bool   `json:"success"`
+}
+
 type VoteKickPlayerResponse struct {
 	EventType string `json:"event_type"`
 	Success   bool   `json:"success"`
@@ -186,6 +192,11 @@ type VoteKickPlayerBroadcast struct {
 	EventType  string `json:"event_type"`
 	TargetID   string `json:"id_target"`
 	IssuerName string `json:"issuer_name"`
+}
+
+type KickBotBroadcast struct {
+	EventType string `json:"event_type"`
+	TargetID  string `json:"id_target"`
 }
 
 func NewUnicastEvent(roomID string, conn *websocket.Conn, message interface{}) SocketEvent {
@@ -257,7 +268,7 @@ func NewJoinRoomResponse(success bool, room *game.Room, detail string) JoinRoomR
 
 func NewAddBotBroadcast(player *game.Player) AddBotBroadcast {
 	result := AddBotBroadcast{
-		EventType: AddBotBroadcatEvent,
+		EventType: AddBotBroadcastEvent,
 		NewPlayer: player,
 	}
 
@@ -397,10 +408,24 @@ func NewChangeHostBroadcast(hostID string) ChangeHostBroadcast {
 	}
 }
 
+func NewKickBotResponse(success bool) KickBotResponse {
+	return KickBotResponse{
+		EventType: VoteKickEvent,
+		Success:   success,
+	}
+}
+
 func NewVoteKickPlayerResponse(success bool) VoteKickPlayerResponse {
 	return VoteKickPlayerResponse{
 		EventType: VoteKickEvent,
 		Success:   success,
+	}
+}
+
+func NewKickBotBroadcast(targetID string) KickBotBroadcast {
+	return KickBotBroadcast{
+		EventType: VoteKickBroadcastEvent,
+		TargetID:  targetID,
 	}
 }
 
