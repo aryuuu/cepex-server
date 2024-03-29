@@ -53,6 +53,9 @@ jobs:
             S3_SECRET_KEY=${{ secrets.S3_SECRET_KEY }}
             IMGUR_API_BASE_URL=${{ secrets.IMGUR_API_BASE_URL }}
             IMGUR_CLIENT_ID=${{ secrets.IMGUR_CLIENT_ID }}
+            ssh_host=${{ secrets.SSH_HOST }}
+            ssh_username=${{ secrets.SSH_USERNAME }}
+            ssh_password=${{ secrets.SSH_PASSWORD }}
             EOF
             docker-compose pull
             docker-compose down
