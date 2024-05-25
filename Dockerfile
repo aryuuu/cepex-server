@@ -1,4 +1,4 @@
-FROM golang:1.17-alpine
+FROM golang:1.17-alpine AS builder
 
 WORKDIR /go/src/app
 # copy src
@@ -7,6 +7,8 @@ COPY . .
 RUN go get -d -v ./...
 # compile binary
 RUN go build -o cepex-server
-# run binary
-CMD ["./cepex-server"]
 
+FROM alpine:latest AS base
+
+COPY --from=builder /go/src/app/cepex-server /cepex-server
+CMD ["/cepex-server"]
